@@ -76,6 +76,9 @@ class DatabaseProvider : ContentProvider() {
         const val BODY_FAT = "fat"
         const val WATER = "water"
         const val MUSCLE = "muscle"
+        const val BONE = "bone"
+        const val BMR = "bmr"
+        const val LBM = "lbm"
     }
 
     override fun onCreate(): Boolean {
@@ -164,9 +167,12 @@ class DatabaseProvider : ContentProvider() {
                             MeasurementColumns._ID,
                             MeasurementColumns.DATETIME,
                             MeasurementColumns.WEIGHT,
+                            MeasurementColumns.BONE,
+                            MeasurementColumns.LBM,
                             MeasurementColumns.BODY_FAT,
                             MeasurementColumns.WATER,
-                            MeasurementColumns.MUSCLE
+                            MeasurementColumns.MUSCLE,
+                            MeasurementColumns.BMR,
                         )
                         val currentProjection = projection ?: defaultMeasurementProjection
                         val matrixCursor = MatrixCursor(currentProjection)
@@ -176,9 +182,20 @@ class DatabaseProvider : ContentProvider() {
                         measurementsWithValuesList.forEachIndexed { index, mcv -> // mcv is MeasurementWithValues
                             val measurement = mcv.measurement
                             val valuesMap = mcv.values.associateBy { it.type.key }
-                            val weightInKg = valuesMap[MeasurementTypeKey.WEIGHT]?.value?.floatValue?.let {
-                                weightType?.unit?.let { unit -> ConverterUtils.convertFloatValueUnit(it, unit, UnitType.KG) }
+
+                            val bmrKcal = valuesMap[MeasurementTypeKey.BMR]?.value?.floatValue?.let {
+                                weightType?.unit?.let { unit -> ConverterUtils.convertFloatValueUnit(it, unit ,UnitType.KCAL) }
                             }
+
+                            fun convertToKg(key: MeasurementTypeKey): Float? {
+                                val value = valuesMap[key]?.value?.floatValue ?: return null
+                                val fromUnit = valuesMap[key]?.type?.unit ?: return null
+                                return ConverterUtils.convertFloatValueUnit(value, fromUnit, UnitType.KG)
+                            }
+
+                            val weightInKg = convertToKg(MeasurementTypeKey.WEIGHT)
+                            val boneInKg = convertToKg(MeasurementTypeKey.BONE)
+                            val lbmInKg = convertToKg(MeasurementTypeKey.LBM)
 
                             fun convertToPercent(key: MeasurementTypeKey): Float? {
                                 val value = valuesMap[key]?.value?.floatValue ?: return null
@@ -199,9 +216,12 @@ class DatabaseProvider : ContentProvider() {
                             if (currentProjection.contains(MeasurementColumns._ID)) rowData.add(measurement.id)
                             if (currentProjection.contains(MeasurementColumns.DATETIME)) rowData.add(measurement.timestamp)
                             if (currentProjection.contains(MeasurementColumns.WEIGHT)) rowData.add(weightInKg)
+                            if (currentProjection.contains(MeasurementColumns.BONE)) rowData.add(boneInKg)
+                            if (currentProjection.contains(MeasurementColumns.LBM)) rowData.add(lbmInKg)
                             if (currentProjection.contains(MeasurementColumns.BODY_FAT)) rowData.add(fatPercent ?: 0.0f)
                             if (currentProjection.contains(MeasurementColumns.WATER)) rowData.add(waterPercent ?: 0.0f)
                             if (currentProjection.contains(MeasurementColumns.MUSCLE)) rowData.add(musclePercent ?: 0.0f)
+                            if (currentProjection.contains(MeasurementColumns.BMR)) rowData.add(bmrKcal)
 
                             LogManager.d(TAG, "Query Row #${index + 1} for user $userIdFromUri (MeasID: ${measurement.id}): ${
                                 currentProjection.zip(rowData).joinToString { "${it.first}=${it.second}" }
@@ -259,10 +279,13 @@ class DatabaseProvider : ContentProvider() {
                     return null
                 }
 
-                // Assume other incoming values are in their base unit (%).
+                // Assume other incoming values are in their base unit.
                 val fatFromProviderPercent = values.getAsFloat(MeasurementColumns.BODY_FAT)
                 val waterFromProviderPercent = values.getAsFloat(MeasurementColumns.WATER)
                 val muscleFromProviderPercent = values.getAsFloat(MeasurementColumns.MUSCLE)
+                val boneFromProviderInKg = values.getAsFloat(MeasurementColumns.BONE)
+                val lbmFromProviderInKg = values.getAsFloat(MeasurementColumns.LBM)
+                val bmrFromProviderInKcal = values.getAsFloat(MeasurementColumns.BMR)
 
                 val measurement = Measurement(
                     // id = 0, // Room will generate this if it's an AutoGenerate PrimaryKey
@@ -279,18 +302,29 @@ class DatabaseProvider : ContentProvider() {
                     val fatType = allMeasurementTypes.find { it.key == MeasurementTypeKey.BODY_FAT }
                     val waterType = allMeasurementTypes.find { it.key == MeasurementTypeKey.WATER }
                     val muscleType = allMeasurementTypes.find { it.key == MeasurementTypeKey.MUSCLE }
+                    val boneType = allMeasurementTypes.find { it.key == MeasurementTypeKey.BONE }
+                    val lbmType = allMeasurementTypes.find { it.key == MeasurementTypeKey.LBM }
+                    val bmrType = allMeasurementTypes.find { it.key == MeasurementTypeKey.BMR }
                     val typeIdMap = allMeasurementTypes.associate { it.key to it.id }
                     weightTypeIdFound = typeIdMap[MeasurementTypeKey.WEIGHT]
 
-                    if (weightType != null) {
-                        val targetWeightValue = ConverterUtils.convertFloatValueUnit(weightFromProviderInKg, UnitType.KG, weightType.unit)
-                        measurementValuesToInsert.add(MeasurementValue(measurementId = 0, typeId = weightType.id, floatValue = targetWeightValue))
-                    } else {
-                        LogManager.e(TAG, "Weight MeasurementType not found. Cannot insert.")
-                        return@runBlocking null
+                    if (bmrType != null) {
+                        val targetWeightValue = ConverterUtils.convertFloatValueUnit(bmrFromProviderInKcal, UnitType.KCAL, bmrType.unit)
+                        measurementValuesToInsert.add(MeasurementValue(measurementId = 0, typeId = bmrType.id, floatValue = targetWeightValue))
                     }
 
-                    fun addConvertedValue(valuePercent: Float?, targetType: MeasurementType?) {
+                    fun addConvertedKgValue(value: Float?, targetType: MeasurementType?) {
+                        if (value == null || targetType == null) return
+
+                        val targetValue = ConverterUtils.convertFloatValueUnit(value, UnitType.KG, targetType.unit)
+                        measurementValuesToInsert.add(MeasurementValue(measurementId = 0, typeId = targetType.id, floatValue = targetValue))
+                    }
+
+                    addConvertedKgValue(weightFromProviderInKg, weightType)
+                    addConvertedKgValue(boneFromProviderInKg, boneType)
+                    addConvertedKgValue(lbmFromProviderInKg, lbmType)
+
+                    fun addConvertedPercentValue(valuePercent: Float?, targetType: MeasurementType?) {
                         if (valuePercent == null || targetType == null) return
 
                         val targetValue = when {
@@ -307,9 +341,9 @@ class DatabaseProvider : ContentProvider() {
                         measurementValuesToInsert.add(MeasurementValue(measurementId = 0, typeId = targetType.id, floatValue = targetValue))
                     }
 
-                    addConvertedValue(fatFromProviderPercent, fatType)
-                    addConvertedValue(waterFromProviderPercent, waterType)
-                    addConvertedValue(muscleFromProviderPercent, muscleType)
+                    addConvertedPercentValue(fatFromProviderPercent, fatType)
+                    addConvertedPercentValue(waterFromProviderPercent, waterType)
+                    addConvertedPercentValue(muscleFromProviderPercent, muscleType)
                 }
 
                 if (weightTypeIdFound == null) { // Double check if weight type ID was resolved
@@ -385,11 +419,14 @@ class DatabaseProvider : ContentProvider() {
                     return 0
                 }
 
-                // Assume incoming values are in base units (kg, %).
+                // Assume incoming values are in base units.
                 val weightFromProviderInKg = values.getAsFloat(MeasurementColumns.WEIGHT)
+                val boneFromProviderInKg = values.getAsFloat(MeasurementColumns.BONE)
+                val lbmFromProviderInKg = values.getAsFloat(MeasurementColumns.LBM)
                 val fatFromProviderPercent = values.getAsFloat(MeasurementColumns.BODY_FAT)
                 val waterFromProviderPercent = values.getAsFloat(MeasurementColumns.WATER)
                 val muscleFromProviderPercent = values.getAsFloat(MeasurementColumns.MUSCLE)
+                val bmrFromProviderInKcal = values.getAsFloat(MeasurementColumns.BMR)
 
                 rowsAffected = runBlocking {
                     try {
@@ -429,9 +466,12 @@ class DatabaseProvider : ContentProvider() {
                             if (newValueFromProvider != null) { // A new value is provided (insert or update)
                                 // --- START: Unit Conversion ---
                                 val targetValue = when {
-                                    typeKey == MeasurementTypeKey.WEIGHT -> {
+                                    typeKey == MeasurementTypeKey.WEIGHT || typeKey == MeasurementTypeKey.BONE || typeKey == MeasurementTypeKey.LBM -> {
                                         // Convert incoming KG to user's weight unit.
                                         ConverterUtils.convertFloatValueUnit(newValueFromProvider, UnitType.KG, targetType.unit)
+                                    }
+                                    typeKey == MeasurementTypeKey.BMR -> {
+                                        ConverterUtils.convertFloatValueUnit(newValueFromProvider, UnitType.KCAL, targetType.unit)
                                     }
                                     targetType.unit.isWeightUnit() -> {
                                         // For composition, convert incoming % to absolute weight in user's unit.
@@ -481,9 +521,12 @@ class DatabaseProvider : ContentProvider() {
 
                         // Process updates for all relevant measurement types
                         processValueUpdate(weightFromProviderInKg, MeasurementTypeKey.WEIGHT, MeasurementColumns.WEIGHT)
+                        processValueUpdate(boneFromProviderInKg, MeasurementTypeKey.BONE, MeasurementColumns.BONE)
+                        processValueUpdate(lbmFromProviderInKg, MeasurementTypeKey.LBM, MeasurementColumns.LBM)
                         processValueUpdate(fatFromProviderPercent, MeasurementTypeKey.BODY_FAT, MeasurementColumns.BODY_FAT)
                         processValueUpdate(waterFromProviderPercent, MeasurementTypeKey.WATER, MeasurementColumns.WATER)
                         processValueUpdate(muscleFromProviderPercent, MeasurementTypeKey.MUSCLE, MeasurementColumns.MUSCLE)
+                        processValueUpdate(bmrFromProviderInKcal, MeasurementTypeKey.BMR, MeasurementColumns.BMR)
 
                         if (anyChangeMade) {
                             LogManager.d(TAG, "Measurement values changed for user ${measurementToUpdate.userId}. Derived values will be recalculated by repository calls.")
