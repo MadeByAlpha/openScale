@@ -21,6 +21,8 @@ import android.bluetooth.le.ScanResult
 import android.util.SparseArray
 import com.health.openscale.core.bluetooth.data.ScaleMeasurement
 import com.health.openscale.core.bluetooth.data.ScaleUser
+import com.health.openscale.core.bluetooth.libs.ImpedanceProcessor
+import com.health.openscale.core.bluetooth.libs.OkOkV2Lib
 import com.health.openscale.core.data.WeightUnit
 import com.health.openscale.core.service.ScannedDeviceInfo
 import com.health.openscale.core.utils.ConverterUtils
@@ -62,6 +64,8 @@ class OkOkHandler : ScaleDeviceHandler() {
     // 0xC0 indices
     private val IDX_WEIGHT_MSB = 0
     private val IDX_WEIGHT_LSB = 1
+    private val IDX_IMPEDANCE_MSB = 2
+    private val IDX_IMPEDANCE_LSB = 3
     private val IDX_ATTRIB     = 6
     private val UNIT_KG   = 0
     private val UNIT_JIN  = 1
@@ -144,7 +148,21 @@ class OkOkHandler : ScaleDeviceHandler() {
 
         // Fallback: 0xC0 vendor
         parseC0(m)?.let { kg ->
-            publish(ScaleMeasurement().apply { userId = user.id; weight = kg })
+            publish(ScaleMeasurement().apply {
+                userId = user.id
+                weight = kg.first
+                impedance = kg.second
+                if (user.age <= 5 || impedance == 0f) return@apply
+
+                val lib: ImpedanceProcessor = OkOkV2Lib(user.age, user.bodyHeight, user.gender.isMale())
+                water = lib.getWater(weight, impedance)
+                visceralFat = lib.getVisceralFat(weight, impedance)
+                fat = lib.getBodyFat(weight, impedance)
+                muscle = lib.getMuscle(weight ,impedance)
+                lbm = lib.getLBM(weight, impedance)
+                bone = lib.getBoneMass(weight, impedance)
+                bmr = (lib as OkOkV2Lib).getBMR(weight)
+            })
             return BroadcastAction.CONSUMED_STOP
         }
 
@@ -219,7 +237,7 @@ class OkOkHandler : ScaleDeviceHandler() {
         return raw / 10.0f
     }
 
-    private fun parseC0(m: SparseArray<ByteArray>): Float? {
+    private fun parseC0(m: SparseArray<ByteArray>): Pair<Float, Float>? {
         val key = firstKeyWithLowByteC0(m) ?: return null
         val data = m.get(key) ?: return null
         if (data.size < 13) return null
@@ -234,6 +252,8 @@ class OkOkHandler : ScaleDeviceHandler() {
             2 -> 100f
             else -> 10f
         }
+
+        val impedance = u16be(data[IDX_IMPEDANCE_MSB], data[IDX_IMPEDANCE_LSB]) / 10.0f
 
         return when ((attrib shr 3) and 0x3) {
             UNIT_KG -> {
@@ -253,8 +273,8 @@ class OkOkHandler : ScaleDeviceHandler() {
                 val pounds = (data[IDX_WEIGHT_LSB].toInt() and 0xFF) / divider
                 stones * 6.350293f + pounds * 0.453592f
             }
-            else -> null
-        }
+            else -> return null
+        } to impedance
     }
 
     // --- utils ----------------------------------------------------------------

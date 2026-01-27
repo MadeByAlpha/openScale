@@ -353,7 +353,7 @@ class MiScaleHandler : ScaleDeviceHandler() {
                 val sex = if (user.gender == GenderType.MALE) 1 else 0
                 val lib = MiScaleLib(sex, user.age, user.bodyHeight)
                 m.water       = lib.getWater(m.weight, imp.toFloat())
-                m.visceralFat = lib.getVisceralFat(m.weight)
+                m.visceralFat = lib.getVisceralFat(m.weight, imp.toFloat())
                 m.fat         = lib.getBodyFat(m.weight, imp.toFloat())
                 m.muscle      = lib.getMuscle(m.weight, imp.toFloat())
                 m.lbm         = lib.getLBM(m.weight, imp.toFloat())
