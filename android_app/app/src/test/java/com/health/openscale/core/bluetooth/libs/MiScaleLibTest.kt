@@ -84,7 +84,7 @@ class MiScaleLibTest {
         assertThat(lib.getLBM(weight, 500f)).isWithin(1e-3f).of(r.lbm)
         assertThat(lib.getMuscle(weight, 500f)).isWithin(1e-3f).of(r.musclePct)
         assertThat(lib.getWater(weight, 500f)).isWithin(1e-3f).of(r.waterPct)
-        assertThat(lib.getVisceralFat(weight)).isWithin(1e-3f).of(r.visceralFat)
+        assertThat(lib.getVisceralFat(weight, 500f)).isWithin(1e-3f).of(r.visceralFat)
     }
 
     @Test
@@ -107,7 +107,7 @@ class MiScaleLibTest {
         assertThat(lib.getLBM(weight, 520f)).isWithin(1e-3f).of(r.lbm)
         assertThat(lib.getMuscle(weight, 520f)).isWithin(1e-3f).of(r.musclePct)
         assertThat(lib.getWater(weight, 520f)).isWithin(1e-3f).of(r.waterPct)
-        assertThat(lib.getVisceralFat(weight)).isWithin(1e-3f).of(r.visceralFat)
+        assertThat(lib.getVisceralFat(weight, 520f)).isWithin(1e-3f).of(r.visceralFat)
     }
 
     @Test
@@ -130,7 +130,7 @@ class MiScaleLibTest {
         assertThat(lib.getLBM(weight, 430f)).isWithin(1e-3f).of(r.lbm)
         assertThat(lib.getMuscle(weight, 430f)).isWithin(1e-3f).of(r.musclePct)
         assertThat(lib.getWater(weight, 430f)).isWithin(1e-3f).of(r.waterPct)
-        assertThat(lib.getVisceralFat(weight)).isWithin(1e-3f).of(r.visceralFat)
+        assertThat(lib.getVisceralFat(weight, 430f)).isWithin(1e-3f).of(r.visceralFat)
     }
 
     // --- Special paths & edge behavior --------------------------------------
@@ -194,7 +194,7 @@ class MiScaleLibTest {
             lib.getLBM(weight, imp),
             lib.getMuscle(weight, imp),
             lib.getWater(weight, imp),
-            lib.getVisceralFat(weight)
+            lib.getVisceralFat(weight, imp)
         )
         nums.forEach { v ->
             assertThat(v.isNaN()).isFalse()
