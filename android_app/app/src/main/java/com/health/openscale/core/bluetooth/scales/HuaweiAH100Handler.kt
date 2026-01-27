@@ -360,7 +360,7 @@ class HuaweiAH100Handler : ScaleDeviceHandler() {
             this.fat = fat
             this.water = water
             if (impedance > 0 && impedance < 4000) {
-                this.impedance = impedance.toDouble()
+                this.impedance = impedance.toFloat()
             }
         }
         publish(m)

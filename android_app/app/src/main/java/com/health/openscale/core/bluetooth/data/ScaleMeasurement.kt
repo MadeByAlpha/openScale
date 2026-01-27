@@ -34,7 +34,7 @@ data class ScaleMeasurement(
     var bone: Float = 0.0f,  // must be in kg
     var lbm : Float = 0.0f, // must be in kg
     var bmr: Float = 0.0f,       // Basal Metabolic Rate in kcal
-    var impedance: Double = 0.0, // Ohms
+    var impedance: Float = 0.0f, // Ohms
 ) {
 
     // --- Utility methods ---
