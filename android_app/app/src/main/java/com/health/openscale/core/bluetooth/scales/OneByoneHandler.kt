@@ -220,13 +220,13 @@ class OneByoneHandler : ScaleDeviceHandler() {
 
         try {
             // Derivations
-            val fatPct = lib.getBodyFat(m.weight, impedanceOhm)
-            m.fat = fatPct
-            m.water = lib.getWater(fatPct)
-            m.bone = lib.getBoneMass(m.weight, impedanceOhm)
-            m.visceralFat = lib.getVisceralFat(m.weight)
-            m.muscle = lib.getMuscle(m.weight, impedanceOhm)
-            m.lbm = lib.getLBM(m.weight, m.fat)
+            m.impedance = impedanceOhm
+            m.fat = lib.getBodyFat(m.weight, m.impedance)
+            m.water = lib.getWater(m.weight, m.impedance)
+            m.bone = lib.getBoneMass(m.weight, m.impedance)
+            m.visceralFat = lib.getVisceralFat(m.weight, m.impedance)
+            m.muscle = lib.getMuscle(m.weight, m.impedance)
+            m.lbm = lib.getLBM(m.weight, m.impedance)
 
             publish(m)
         } catch (t: Throwable) {
@@ -278,8 +278,14 @@ class OneByoneHandler : ScaleDeviceHandler() {
         return (x and 0xFF).toByte()
     }
 
-    private fun mapUserToLibParams(u: ScaleUser): Pair<Int, Int> {
-        val sex = if (u.gender == GenderType.MALE) 1 else 0
+    private fun u16le(b: ByteArray, off: Int): Int =
+        (b[off].toInt() and 0xFF) or ((b[off + 1].toInt() and 0xFF) shl 8)
+
+    private fun u16be(b: ByteArray, off: Int): Int =
+        ((b[off].toInt() and 0xFF) shl 8) or (b[off + 1].toInt() and 0xFF)
+
+    private fun mapUserToLibParams(u: ScaleUser): Pair<Boolean, Int> {
+        val sex = u.gender.isMale()
         val peopleType = when (u.activityLevel) {
             // Matches legacy mapping:
             // SEDENTARY/MILD -> 0, MODERATE -> 1, HEAVY/EXTREME -> 2

@@ -346,18 +346,17 @@ class MiScaleHandler : ScaleDeviceHandler() {
         }
 
         if (hasImp) {
-            val imp = ((d[10].toInt() and 0xFF) shl 8) or (d[9].toInt() and 0xFF)
+            val imp = (((d[10].toInt() and 0xFF) shl 8) or (d[9].toInt() and 0xFF)).toFloat()
             if (imp > 0) {
                 // Store the raw impedance so body composition can be recomputed later.
                 m.impedance = imp.toDouble()
-                val sex = if (user.gender == GenderType.MALE) 1 else 0
-                val lib = MiScaleLib(sex, user.age, user.bodyHeight)
-                m.water       = lib.getWater(m.weight, imp.toFloat())
-                m.visceralFat = lib.getVisceralFat(m.weight, imp.toFloat())
-                m.fat         = lib.getBodyFat(m.weight, imp.toFloat())
-                m.muscle      = lib.getMuscle(m.weight, imp.toFloat())
-                m.lbm         = lib.getLBM(m.weight, imp.toFloat())
-                m.bone        = lib.getBoneMass(m.weight, imp.toFloat())
+                val lib = MiScaleLib(user.gender.isMale(), user.age, user.bodyHeight)
+                m.water       = lib.getWater(m.weight, imp)
+                m.visceralFat = lib.getVisceralFat(m.weight, imp)
+                m.fat         = lib.getBodyFat(m.weight, imp)
+                m.muscle      = lib.getMuscle(m.weight, imp)
+                m.lbm         = lib.getLBM(m.weight, imp)
+                m.bone        = lib.getBoneMass(m.weight, imp)
             }
         }
 

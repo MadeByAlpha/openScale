@@ -6,7 +6,11 @@ package com.health.openscale.core.bluetooth.libs
 import kotlin.math.max
 import kotlin.math.min
 
-class OkOkV2Lib(age: Int, height: Float, isMale: Boolean) : ImpedanceProcessor(age + 1, height, isMale) {
+class OkOkV2Lib(
+    isMale: Boolean,
+    age: Int,
+    height: Float,  // cm
+) : MonoSensorAnalyzeLib(isMale, age + 1, height) {
 
     override fun getLBM(weight: Float, impedance: Float) =
         weight - getFatMass(weight, impedance)
