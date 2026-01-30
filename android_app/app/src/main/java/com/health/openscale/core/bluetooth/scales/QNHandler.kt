@@ -263,15 +263,15 @@ class QNHandler : ScaleDeviceHandler() {
             val impedance = if (r1 < 410f) 3.0f else 0.3f * (r1 - 400f)
 
             val trisa = TrisaBodyAnalyzeLib(
-                if (user.gender.isMale()) 1 else 0,
+                user.gender.isMale(),
                 user.age,
                 user.bodyHeight
             )
 
-            m.fat    = trisa.getFat(weightKg, impedance)
+            m.fat    = trisa.getBodyFat(weightKg, impedance)
             m.water  = trisa.getWater(weightKg, impedance)
             m.muscle = trisa.getMuscle(weightKg, impedance)
-            m.bone   = trisa.getBone(weightKg, impedance)
+            m.bone   = trisa.getBoneMass(weightKg, impedance)
 
             publish(snapshot(m))
             hasPublishedForThisSession = true

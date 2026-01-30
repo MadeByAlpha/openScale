@@ -1,10 +1,10 @@
 package com.health.openscale.core.bluetooth.libs
 
 
-abstract class ImpedanceProcessor internal constructor(
+abstract class MonoSensorAnalyzeLib internal constructor(
+    protected val isMale: Boolean,
     protected val age: Int,
     protected val height: Float,
-    protected val isMale: Boolean,
 ) {
 
     fun getBMI(weight: Float): Float {

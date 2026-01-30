@@ -21,7 +21,7 @@ import android.bluetooth.le.ScanResult
 import android.util.SparseArray
 import com.health.openscale.core.bluetooth.data.ScaleMeasurement
 import com.health.openscale.core.bluetooth.data.ScaleUser
-import com.health.openscale.core.bluetooth.libs.ImpedanceProcessor
+import com.health.openscale.core.bluetooth.libs.MonoSensorAnalyzeLib
 import com.health.openscale.core.bluetooth.libs.OkOkV2Lib
 import com.health.openscale.core.data.WeightUnit
 import com.health.openscale.core.service.ScannedDeviceInfo
@@ -149,7 +149,7 @@ class OkOkHandler : ScaleDeviceHandler() {
                 impedance = kg.second
                 if (user.age <= 5 || impedance == 0f) return@apply
 
-                val lib: ImpedanceProcessor = OkOkV2Lib(user.age, user.bodyHeight, user.gender.isMale())
+                val lib: MonoSensorAnalyzeLib = OkOkV2Lib(user.age, user.bodyHeight, user.gender.isMale())
                 water = lib.getWater(weight, impedance)
                 visceralFat = lib.getVisceralFat(weight, impedance)
                 fat = lib.getBodyFat(weight, impedance)

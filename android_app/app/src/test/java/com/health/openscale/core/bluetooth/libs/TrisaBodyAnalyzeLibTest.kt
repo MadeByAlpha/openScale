@@ -35,7 +35,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun bmi_isComputedCorrectly_forTypicalMale() {
-        val lib = TrisaBodyAnalyzeLib(1, 30, 180f)
+        val lib = TrisaBodyAnalyzeLib(true, 30, 180f)
         val weight = 80f
 
         val bmi = lib.getBMI(weight)
@@ -45,7 +45,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun bmi_monotonicity_weightUp_heightSame_increases() {
-        val lib = TrisaBodyAnalyzeLib(0, 28, 165f)
+        val lib = TrisaBodyAnalyzeLib(false, 28, 165f)
         val bmi1 = lib.getBMI(60f)
         val bmi2 = lib.getBMI(65f)
         assertThat(bmi2).isGreaterThan(bmi1)
@@ -53,8 +53,8 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun bmi_monotonicity_heightUp_weightSame_decreases() {
-        val shorty = TrisaBodyAnalyzeLib(1, 35, 170f)
-        val tall   = TrisaBodyAnalyzeLib(1, 35, 185f)
+        val shorty = TrisaBodyAnalyzeLib(true, 35, 170f)
+        val tall   = TrisaBodyAnalyzeLib(true, 35, 185f)
         val weight = 80f
         assertThat(tall.getBMI(weight)).isLessThan(shorty.getBMI(weight))
     }
@@ -63,8 +63,8 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun impedance_effects_haveExpectedDirections() {
-        val male = TrisaBodyAnalyzeLib(1, 30, 180f)
-        val female = TrisaBodyAnalyzeLib(0, 30, 165f)
+        val male = TrisaBodyAnalyzeLib(true, 30, 180f)
+        val female = TrisaBodyAnalyzeLib(false, 30, 165f)
 
         val w = 70f
         val impLow = 300f
@@ -72,40 +72,40 @@ class TrisaBodyAnalyzeLibTest {
 
         assertThat(male.getWater(w, impHigh)).isLessThan(male.getWater(w, impLow))
         assertThat(male.getMuscle(w, impHigh)).isLessThan(male.getMuscle(w, impLow))
-        assertThat(male.getBone(w, impHigh)).isLessThan(male.getBone(w, impLow))
-        assertThat(male.getFat(w, impHigh)).isGreaterThan(male.getFat(w, impLow))
+        assertThat(male.getBoneMass(w, impHigh)).isLessThan(male.getBoneMass(w, impLow))
+        assertThat(male.getBodyFat(w, impHigh)).isGreaterThan(male.getBodyFat(w, impLow))
 
         assertThat(female.getWater(w, impHigh)).isLessThan(female.getWater(w, impLow))
         assertThat(female.getMuscle(w, impHigh)).isLessThan(female.getMuscle(w, impLow))
-        assertThat(female.getBone(w, impHigh)).isLessThan(female.getBone(w, impLow))
-        assertThat(female.getFat(w, impHigh)).isGreaterThan(female.getFat(w, impLow))
+        assertThat(female.getBoneMass(w, impHigh)).isLessThan(female.getBoneMass(w, impLow))
+        assertThat(female.getBodyFat(w, impHigh)).isGreaterThan(female.getBodyFat(w, impLow))
     }
 
     @Test
     fun sex_flag_changes_branch_outputs() {
-        val male = TrisaBodyAnalyzeLib(1, 30, 175f)
-        val female = TrisaBodyAnalyzeLib(0, 30, 175f)
+        val male = TrisaBodyAnalyzeLib(true, 30, 175f)
+        val female = TrisaBodyAnalyzeLib(false, 30, 175f)
         val w = 70f
         val imp = 500f
 
         assertThat(male.getWater(w, imp)).isNotEqualTo(female.getWater(w, imp))
-        assertThat(male.getFat(w, imp)).isNotEqualTo(female.getFat(w, imp))
+        assertThat(male.getBodyFat(w, imp)).isNotEqualTo(female.getBodyFat(w, imp))
         assertThat(male.getMuscle(w, imp)).isNotEqualTo(female.getMuscle(w, imp))
-        assertThat(male.getBone(w, imp)).isNotEqualTo(female.getBone(w, imp))
+        assertThat(male.getBoneMass(w, imp)).isNotEqualTo(female.getBoneMass(w, imp))
     }
 
     @Test
     fun outputs_areFinite_forTypicalInputs() {
-        val lib = TrisaBodyAnalyzeLib(1, 30, 180f)
+        val lib = TrisaBodyAnalyzeLib(true, 30, 180f)
         val w = 80f
         val imp = 500f
 
         val nums = listOf(
             lib.getBMI(w),
             lib.getWater(w, imp),
-            lib.getFat(w, imp),
+            lib.getBodyFat(w, imp),
             lib.getMuscle(w, imp),
-            lib.getBone(w, imp)
+            lib.getBoneMass(w, imp)
         )
 
         nums.forEach { v ->
@@ -118,7 +118,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_male_30y_180cm_80kg_imp500() {
-        val lib = TrisaBodyAnalyzeLib(1, 30, 180f)
+        val lib = TrisaBodyAnalyzeLib(true, 30, 180f)
         val w = 80f
         val imp = 500f
         val r = Fixture(
@@ -133,7 +133,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_female_28y_165cm_60kg_imp520() {
-        val lib = TrisaBodyAnalyzeLib(0, 28, 165f)
+        val lib = TrisaBodyAnalyzeLib(false, 28, 165f)
         val w = 60f
         val imp = 520f
         val r = Fixture(
@@ -148,7 +148,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_male_45y_175cm_95kg_imp430() {
-        val lib = TrisaBodyAnalyzeLib(1, 45, 175f)
+        val lib = TrisaBodyAnalyzeLib(true, 45, 175f)
         val w = 95f
         val imp = 430f
         val r = Fixture(
@@ -163,7 +163,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_female_55y_160cm_50kg_imp600() {
-        val lib = TrisaBodyAnalyzeLib(0, 55, 160f)
+        val lib = TrisaBodyAnalyzeLib(false, 55, 160f)
         val w = 50f
         val imp = 600f
         val r = Fixture(
@@ -178,7 +178,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_male_20y_190cm_65kg_imp480() {
-        val lib = TrisaBodyAnalyzeLib(1, 20, 190f)
+        val lib = TrisaBodyAnalyzeLib(true, 20, 190f)
         val w = 65f
         val imp = 480f
         val r = Fixture(
@@ -193,7 +193,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_female_22y_155cm_55kg_imp510() {
-        val lib = TrisaBodyAnalyzeLib(0, 22, 155f)
+        val lib = TrisaBodyAnalyzeLib(false, 22, 155f)
         val w = 55f
         val imp = 510f
         val r = Fixture(
@@ -208,7 +208,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_male_35y_175cm_85kg_imp200() {
-        val lib = TrisaBodyAnalyzeLib(1, 35, 175f)
+        val lib = TrisaBodyAnalyzeLib(true, 35, 175f)
         val w = 85f
         val imp = 200f
         val r = Fixture(
@@ -223,7 +223,7 @@ class TrisaBodyAnalyzeLibTest {
 
     @Test
     fun regression_female_40y_170cm_70kg_imp800() {
-        val lib = TrisaBodyAnalyzeLib(0, 40, 170f)
+        val lib = TrisaBodyAnalyzeLib(false, 40, 170f)
         val w = 70f
         val imp = 800f
         val r = Fixture(
@@ -241,9 +241,9 @@ class TrisaBodyAnalyzeLibTest {
     private fun checkFixture(lib: TrisaBodyAnalyzeLib, w: Float, imp: Float, r: Fixture) {
         assertThat(lib.getBMI(w)).isWithin(EPS).of(r.bmi)
         assertThat(lib.getWater(w, imp)).isWithin(EPS).of(r.water)
-        assertThat(lib.getFat(w, imp)).isWithin(EPS).of(r.fat)
+        assertThat(lib.getBodyFat(w, imp)).isWithin(EPS).of(r.fat)
         assertThat(lib.getMuscle(w, imp)).isWithin(EPS).of(r.muscle)
-        assertThat(lib.getBone(w, imp)).isWithin(EPS).of(r.bone)
+        assertThat(lib.getBoneMass(w, imp)).isWithin(EPS).of(r.bone)
     }
 
     private data class Fixture(

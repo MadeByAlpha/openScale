@@ -21,11 +21,10 @@
 package com.health.openscale.core.bluetooth.libs
 
 class MiScaleLib(
-    // male = 1; female = 0
-    sex: Int,
+    isMale: Boolean,
     age: Int,
-    height: Float // cm
-): ImpedanceProcessor(age, height, sex == 1) {
+    height: Float
+): MonoSensorAnalyzeLib(isMale, age, height) {
 
     private fun getLBMCoefficient(weight: Float, impedance: Float): Float {
         var lbm = (height * 9.058f / 100.0f) * (height / 100.0f)

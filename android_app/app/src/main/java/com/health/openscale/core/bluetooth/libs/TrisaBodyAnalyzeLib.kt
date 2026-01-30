@@ -21,58 +21,61 @@ package com.health.openscale.core.bluetooth.libs
 /**
  * Class with static helper methods. This is a separate class for testing purposes.
  */
-class TrisaBodyAnalyzeLib(sex: Int, private val ageYears: Int, private val heightCm: Float) {
-    private val isMale: Boolean
+class TrisaBodyAnalyzeLib(
+    isMale: Boolean,
+    age: Int,
+    height: Float
+) : MonoSensorAnalyzeLib(isMale, age, height) {
 
-    init {
-        isMale = if (sex == 1) true else false // male = 1; female = 0
-    }
-
-    fun getBMI(weightKg: Float): Float {
-        return weightKg * 1e4f / (heightCm * heightCm)
-    }
-
-    fun getWater(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
+    override fun getWater(weight: Float, impedance: Float): Float {
+        val bmi = getBMI(weight)
 
         val water = if (isMale)
-            87.51f + (-1.162f * bmi - 0.00813f * impedance + 0.07594f * ageYears)
+            87.51f + (-1.162f * bmi - 0.00813f * impedance + 0.07594f * age)
         else
-            77.721f + (-1.148f * bmi - 0.00573f * impedance + 0.06448f * ageYears)
+            77.721f + (-1.148f * bmi - 0.00573f * impedance + 0.06448f * age)
 
         return water
     }
 
-    fun getFat(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
+    override fun getBodyFat(weight: Float, impedance: Float): Float {
+        val bmi = getBMI(weight)
 
         val fat = if (isMale)
-            bmi * (1.479f + 4.4e-4f * impedance) + 0.1f * ageYears - 21.764f
+            bmi * (1.479f + 4.4e-4f * impedance) + 0.1f * age - 21.764f
         else
-            bmi * (1.506f + 3.908e-4f * impedance) + 0.1f * ageYears - 12.834f
+            bmi * (1.506f + 3.908e-4f * impedance) + 0.1f * age - 12.834f
 
         return fat
     }
 
-    fun getMuscle(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
+    override fun getMuscle(weight: Float, impedance: Float): Float {
+        val bmi = getBMI(weight)
 
         val muscle = if (isMale)
-            74.627f + (-0.811f * bmi - 0.00565f * impedance - 0.367f * ageYears)
+            74.627f + (-0.811f * bmi - 0.00565f * impedance - 0.367f * age)
         else
-            57.0f + (-0.694f * bmi - 0.00344f * impedance - 0.255f * ageYears)
+            57.0f + (-0.694f * bmi - 0.00344f * impedance - 0.255f * age)
 
         return muscle
     }
 
-    fun getBone(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
+    override fun getBoneMass(weight: Float, impedance: Float): Float {
+        val bmi = getBMI(weight)
 
         val bone = if (isMale)
-            7.829f + (-0.0855f * bmi - 5.92e-4f * impedance - 0.0389f * ageYears)
+            7.829f + (-0.0855f * bmi - 5.92e-4f * impedance - 0.0389f * age)
         else
-            7.98f + (-0.0973f * bmi - 4.84e-4f * impedance - 0.036f * ageYears)
+            7.98f + (-0.0973f * bmi - 4.84e-4f * impedance - 0.036f * age)
 
         return bone
+    }
+
+    override fun getVisceralFat(weight: Float, impedance: Float): Float {
+        throw UnsupportedOperationException("This type of device does not provide visceral fat")
+    }
+
+    override fun getLBM(weight: Float, impedance: Float): Float {
+        throw UnsupportedOperationException("This type of device does not provide LBM")
     }
 }

@@ -36,7 +36,7 @@ class MiScaleLibTest {
     @Test
     fun bmi_isComputedCorrectly_forTypicalMale() {
         // Given
-        val lib = MiScaleLib(/* sex=male */ 1, /* age */ 30, /* height cm */ 180f)
+        val lib = MiScaleLib(/* sex */ true, /* age */ 30, /* height cm */ 180f)
         val weight = 80f
 
         // When
@@ -48,7 +48,7 @@ class MiScaleLibTest {
 
     @Test
     fun bmi_monotonicity_weightUp_heightSame_increases() {
-        val lib = MiScaleLib(0, 28, 165f)
+        val lib = MiScaleLib(true, 28, 165f)
         val bmi1 = lib.getBMI(60f)
         val bmi2 = lib.getBMI(65f)
         assertThat(bmi2).isGreaterThan(bmi1)
@@ -56,8 +56,8 @@ class MiScaleLibTest {
 
     @Test
     fun bmi_monotonicity_heightUp_weightSame_decreases() {
-        val libShort = MiScaleLib(1, 35, 170f)
-        val libTall  = MiScaleLib(1, 35, 185f)
+        val libShort = MiScaleLib(true, 35, 170f)
+        val libTall  = MiScaleLib(true, 35, 185f)
         val weight = 80f
         assertThat(libTall.getBMI(weight)).isLessThan(libShort.getBMI(weight))
     }
@@ -66,7 +66,7 @@ class MiScaleLibTest {
 
     @Test
     fun regression_male_30y_180cm_80kg_imp500() {
-        val lib = MiScaleLib(1, 30, 180f)
+        val lib = MiScaleLib(true, 30, 180f)
         val weight = 80f
         val r = Fixture(
             bmi = 24.691359f,
@@ -89,7 +89,7 @@ class MiScaleLibTest {
 
     @Test
     fun regression_female_28y_165cm_60kg_imp520() {
-        val lib = MiScaleLib(0, 28, 165f)
+        val lib = MiScaleLib(false, 28, 165f)
         val weight = 60f
         val r = Fixture(
             bmi = 22.038567f,
@@ -112,7 +112,7 @@ class MiScaleLibTest {
 
     @Test
     fun regression_male_45y_175cm_95kg_imp430() {
-        val lib = MiScaleLib(1, 45, 175f)
+        val lib = MiScaleLib(true, 45, 175f)
         val weight = 95f
         val r = Fixture(
             bmi = 31.020409f,
@@ -138,7 +138,7 @@ class MiScaleLibTest {
     @Test
     fun muscle_fallback_whenImpedanceZero_usesLbmRatio_andIsClamped() {
         // Female, impedance=0 triggers fallback path (LBM * 0.46) → % of weight → clamp 10..60
-        val lib = MiScaleLib(0, 52, 160f)
+        val lib = MiScaleLib(false, 52, 160f)
         val weight = 48f
 
         // Compute expected via the same path the code uses (behavioral property, not magic number)
@@ -155,7 +155,7 @@ class MiScaleLibTest {
     @Test
     fun muscle_percentage_isClampedAt60_whenExtremelyHigh() {
         // Construct params that blow up SMM/weight; expect clamp to 60%
-        val lib = MiScaleLib(1, 20, 190f)
+        val lib = MiScaleLib(true, 20, 190f)
         val clamped = lib.getMuscle(/* weight */ 40f, /* very low impedance */ 50f)
         assertThat(clamped).isWithin(EPS).of(60f)
     }
@@ -163,7 +163,7 @@ class MiScaleLibTest {
     @Test
     fun water_derivesFromBodyFat_andUsesCoeffBranch() {
         // Check: water = ((100 - BF) * 0.7) * coeff, coeff = 1.02 if <50 else 0.98
-        val lib = MiScaleLib(0, 50, 150f)
+        val lib = MiScaleLib(false, 50, 150f)
         val weight = 100f
         val imp = 700f
 
@@ -183,7 +183,7 @@ class MiScaleLibTest {
 
     @Test
     fun outputs_areFinite_forTypicalInputs() {
-        val lib = MiScaleLib(1, 30, 180f)
+        val lib = MiScaleLib(true, 30, 180f)
         val weight = 80f
         val imp = 500f
 

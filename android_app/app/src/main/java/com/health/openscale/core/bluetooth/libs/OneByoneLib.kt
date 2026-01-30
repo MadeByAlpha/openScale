@@ -17,25 +17,34 @@
  */
 package com.health.openscale.core.bluetooth.libs
 
-class OneByoneLib(// male = 1; female = 0
-    private val sex: Int,
-    private val age: Int,
-    private val height: Float, // low activity = 0; medium activity = 1; high activity = 2
-    private val peopleType: Int
-) {
-    fun getBMI(weight: Float): Float {
-        return weight / (((height * height) / 100.0f) / 100.0f)
-    }
+import androidx.annotation.VisibleForTesting
 
-    fun getLBM(weight: Float, bodyFat: Float): Float {
+class OneByoneLib(
+    isMale: Boolean,
+    age: Int,
+    height: Float,
+    private val peopleType: Int // low activity = 0; medium activity = 1; high activity = 2
+) : MonoSensorAnalyzeLib(isMale, age, height) {
+
+    @Deprecated("Use getLBM instead", ReplaceWith("getLBM(weight, impedance)"), DeprecationLevel.ERROR)
+    fun getLBMBodyFat(weight: Float, bodyFat: Float): Float {
         return weight - (bodyFat / 100.0f * weight)
     }
 
-    fun getMuscle(weight: Float, impedanceValue: Float): Float {
-        return ((height * height / impedanceValue * 0.401) + (sex * 3.825) - (age * 0.071) + 5.102).toFloat() / weight * 100.0f
+    override fun getLBM(weight: Float, impedance: Float): Float {
+        return weight - (this.getBodyFat(weight, impedance) / 100.0f * weight)
     }
 
-    fun getWater(bodyFat: Float): Float {
+    override fun getMuscle(weight: Float, impedance: Float): Float {
+        return ((height * height / impedance * 0.401f) + ((if (isMale) 1 else 0) * 3.825f) - (age * 0.071f) + 5.102f) / weight * 100.0f
+    }
+
+    override fun getWater(weight: Float, impedance: Float): Float {
+        return this.getWater(this.getBodyFat(weight, impedance))
+    }
+
+    @VisibleForTesting
+    internal fun getWater(bodyFat: Float): Float {
         val coeff: Float
         val water = (100.0f - bodyFat) * 0.7f
 
@@ -48,7 +57,7 @@ class OneByoneLib(// male = 1; female = 0
         return coeff * water
     }
 
-    fun getBoneMass(weight: Float, impedanceValue: Float): Float {
+    override fun getBoneMass(weight: Float, impedance: Float): Float {
         var boneMass: Float
         val sexConst: Float
         var peopleCoeff = 0.0f
@@ -60,9 +69,9 @@ class OneByoneLib(// male = 1; female = 0
         }
 
         boneMass =
-            (9.058f * (height / 100.0f) * (height / 100.0f) + 12.226f + (0.32f * weight)) - (0.0068f * impedanceValue)
+            (9.058f * (height / 100.0f) * (height / 100.0f) + 12.226f + (0.32f * weight)) - (0.0068f * impedance)
 
-        if (sex == 1) { // male
+        if (isMale) { // male
             sexConst = 3.49305f
         } else {
             sexConst = 4.76325f
@@ -87,10 +96,10 @@ class OneByoneLib(// male = 1; female = 0
         return boneMass
     }
 
-    fun getVisceralFat(weight: Float): Float {
+    override fun getVisceralFat(weight: Float, impedance: Float): Float {
         val visceralFat: Float
 
-        if (sex == 1) {
+        if (isMale) {
             if (height < ((1.6f * weight) + 63.0f)) {
                 visceralFat =
                     (((weight * 305.0f) / (0.0826f * height * height - (0.4f * height) + 48.0f)) - 2.9f) + (age.toFloat() * 0.15f)
@@ -168,12 +177,12 @@ class OneByoneLib(// male = 1; female = 0
         }
     }
 
-    fun getBodyFat(weight: Float, impedanceValue: Float): Float {
+    override fun getBodyFat(weight: Float, impedance: Float): Float {
         var bodyFatConst = 0f
 
-        if (impedanceValue >= 1200.0f) bodyFatConst = 8.16f
-        else if (impedanceValue >= 200.0f) bodyFatConst = 0.0068f * impedanceValue
-        else if (impedanceValue >= 50.0f) bodyFatConst = 1.36f
+        if (impedance >= 1200.0f) bodyFatConst = 8.16f
+        else if (impedance >= 200.0f) bodyFatConst = 0.0068f * impedance
+        else if (impedance >= 50.0f) bodyFatConst = 1.36f
 
         val peopleTypeCoeff: Float
         var bodyVar: Float
@@ -195,17 +204,13 @@ class OneByoneLib(// male = 1; female = 0
         bodyVar = bodyVar + 0.32f * weight
         bodyVar = bodyVar - bodyFatConst
 
-        if (age > 0x31) {
-            bodyFatConst = 7.25f
-
-            if (sex == 1) {
-                bodyFatConst = 0.8f
-            }
+        if (isMale) {
+            bodyFatConst = 0.8f
         } else {
-            bodyFatConst = 9.25f
-
-            if (sex == 1) {
-                bodyFatConst = 0.8f
+            if (age > 0x31) {
+                bodyFatConst = 7.25f
+            } else {
+                bodyFatConst = 9.25f
             }
         }
 
@@ -213,7 +218,7 @@ class OneByoneLib(// male = 1; female = 0
         bodyVar = bodyVar - (age * 0.0542f)
         bodyVar = bodyVar * peopleTypeCoeff
 
-        if (sex != 0) {
+        if (isMale) {
             if (61.0f > weight) {
                 bodyVar *= 0.98f
             }
