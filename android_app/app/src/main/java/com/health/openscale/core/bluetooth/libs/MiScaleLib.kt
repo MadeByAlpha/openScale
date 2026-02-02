@@ -76,7 +76,7 @@ class MiScaleLib(
     }
 
     override fun getBoneMass(weight: Float, impedance: Float): Float {
-        val base = if (!isMale) 0.245691014f else 0.18016894f
+        val base = if (!isMale) 0.245691014.toFloat() else 0.18016894f
         var boneMass = (base - (getLBMCoefficient(weight, impedance) * 0.05158f)) * -1.0f
 
         boneMass = if (boneMass > 2.2f) boneMass + 0.1f else boneMass - 0.1f
@@ -117,7 +117,7 @@ class MiScaleLib(
         var lbmSub = 0.8f
         if (!isMale && age <= 49) {
             lbmSub = 9.25f
-        } else if (!isMale && age > 49) {
+        } else if (!isMale) {
             lbmSub = 7.25f
         }
 
@@ -143,5 +143,9 @@ class MiScaleLib(
             bodyFat = 75.0f
         }
         return bodyFat
+    }
+
+    override fun getProtein(weight: Float, impedance: Float): Float {
+        throw UnsupportedOperationException("This type of device does not support protein measurement")
     }
 }

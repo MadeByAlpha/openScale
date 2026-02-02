@@ -182,7 +182,7 @@ class OneByoneNewLib(
         return getBounded(waterPercentage, 35f, 75f)
     }
 
-    fun getProtein(weight: Float, impedance: Float): Float {
+    override fun getProtein(weight: Float, impedance: Float): Float {
         return (((100.0f - getBodyFat(weight, impedance))
                 - getWater(weight, impedance) * 1.08f
                 )

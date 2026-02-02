@@ -21,6 +21,8 @@ abstract class MonoSensorAnalyzeLib internal constructor(
 
     abstract fun getVisceralFat(weight: Float, impedance: Float): Float
 
+    abstract fun getProtein(weight: Float, impedance: Float): Float
+
     abstract fun getBoneMass(weight: Float, impedance: Float): Float
 
     abstract fun getLBM(weight: Float, impedance: Float): Float

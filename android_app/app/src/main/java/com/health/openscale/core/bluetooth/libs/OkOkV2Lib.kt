@@ -140,7 +140,7 @@ class OkOkV2Lib(
         return min(max(bodyAge, 18), 80)
     }
 
-    fun getProtein(weight: Float, impedance: Float): Float {
+    override fun getProtein(weight: Float, impedance: Float): Float {
         if (age <= 17) return 0f
         return ((getMuscleMass(weight, impedance) - getWaterMass(weight, impedance)) / weight * 100f)
     }
