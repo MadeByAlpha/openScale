@@ -249,4 +249,8 @@ class OneByoneLib(
             }
         }
     }
+
+    override fun getProtein(weight: Float, impedance: Float): Float {
+        throw UnsupportedOperationException("This type of device does not support protein measurement")
+    }
 }

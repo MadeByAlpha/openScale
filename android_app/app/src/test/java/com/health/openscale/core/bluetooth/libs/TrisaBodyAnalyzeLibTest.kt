@@ -40,7 +40,7 @@ class TrisaBodyAnalyzeLibTest {
 
         val bmi = lib.getBMI(weight)
 
-        assertThat(bmi).isWithin(EPS).of(24.691358f)
+        assertThat(bmi).isWithin(EPS).of(24.691358.toFloat())
     }
 
     @Test

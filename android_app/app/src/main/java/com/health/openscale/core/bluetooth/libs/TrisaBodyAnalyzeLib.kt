@@ -71,6 +71,10 @@ class TrisaBodyAnalyzeLib(
         return bone
     }
 
+    override fun getProtein(weight: Float, impedance: Float): Float {
+        throw UnsupportedOperationException("This type of device does not support protein measurement")
+    }
+
     override fun getVisceralFat(weight: Float, impedance: Float): Float {
         throw UnsupportedOperationException("This type of device does not provide visceral fat")
     }
