@@ -1,6 +1,8 @@
 <resources>
     <!-- App & General -->
     <string name="app_name" translatable="false">openScale</string>
+    <string name="sync_app_unreachable_hint">Last change wasn\'t synchronized. Please open openScale-sync and run a manual sync.</string>
+    <string name="sync_app_open_action">Open</string>
     <string name="app_logo_content_description">App Logo</string>
     <string name="text_none">None</string>
     <string name="not_available">N/A</string>
@@ -14,6 +16,7 @@
     <string name="clear_button">Clear</string>
     <string name="confirm_button">Confirm</string>
     <string name="dialog_ok">OK</string>
+    <string name="saved">Saved</string>
     <string name="switch_on">On</string>
     <string name="switch_off">Off</string>
     <string name="open_link_content_description">Open link</string>
@@ -41,7 +44,10 @@
     <string name="route_title_graph">Charts</string>
     <string name="route_title_table">Table</string>
     <string name="route_title_statistics">Statistics</string>
+    <string name="route_title_insights">Insights</string>
     <string name="route_title_settings">Settings</string>
+    <string name="route_title_table_drilldown">Details</string>
+    <string name="calendar_week_abbrev">CW</string>
     <string name="title_new_measurement">New Measurement</string>
     <string name="title_edit_measurement">Edit Measurement</string>
     <string name="about_screen_title">About</string>
@@ -65,6 +71,7 @@
     <string name="user_deleted_successfully">User %1$s was deleted successfully.</string>
     <string name="user_deleted_error">Error deleting user %1$s.</string>
     <string name="user_updated_successfully">User %1$s updated successfully.</string>
+    <string name="user_added_successfully">User %1$s added successfully.</string>
     <string name="user_updated_error">Error updating user %1$s.</string>
     <string name="user_detail_label_name">Name</string>
     <string name="user_detail_label_height">Height</string>
@@ -99,11 +106,19 @@
     <string name="user_detail_content_description_change_unit">Change unit</string>
 
     <!-- Measurement CRUD & Operations -->
-    <string name="success_measurement_updated">Measurement successfully updated</string>
-    <string name="success_measurement_saved">Measurement successfully saved</string>
-    <string name="error_saving_measurement">Error saving measurement</string>
-    <string name="success_measurement_deleted">Measurement %1$s successfully deleted</string>
-    <string name="error_deleting_measurement">Error deleting measurement</string>
+    <string name="success_measurement_updated">Measurement updated (%1$s)</string> <!-- %1$s is date/time -->
+    <string name="success_measurement_saved">Measurement saved (%1$s)</string> <!-- %1$s is date/time -->
+    <string name="error_saving_measurement">Couldn\'t save measurement. Please try again.</string>
+    <string name="error_duplicate_timestamp">Not saved — a measurement already exists at %1$s.</string> <!-- %1$s is date/time -->
+    <string name="success_measurement_deleted">Measurement deleted (%1$s)</string> <!-- %1$s is date/time -->
+    <string name="error_deleting_measurement">Couldn\'t delete measurement. Please try again.</string>
+    <string name="action_undo">Undo</string>
+    <string name="cd_chart_handle_resize">Drag to resize the chart, or tap to collapse it</string>
+    <string name="cd_chart_handle_show">Tap to show the chart</string>
+    <string name="dialog_title_discard_changes">Discard changes?</string>
+    <string name="dialog_message_discard_changes">Your changes haven\'t been saved and will be lost.</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_keep_editing">Keep editing</string>
     <string name="action_save_measurement">Save measurement</string>
     <string name="action_add_measurement">Add Measurement</string>
     <string name="action_add_measurement_desc">Add new measurement</string>
@@ -169,6 +184,19 @@
     <string name="measurement_type_caliper3">Caliper 3</string>
     <string name="measurement_type_fat_caliper">Fat Caliper</string>
     <string name="measurement_type_bmr">BMR</string>
+    <string name="measurement_type_heart_rate">Heart Rate</string>
+    <string name="measurement_type_impedance">Impedance (high)</string>
+    <string name="measurement_type_impedance_low">Impedance (low)</string>
+    <string name="measurement_type_ecw">Extracellular water</string>
+    <string name="measurement_type_icw">Intracellular water</string>
+    <string name="measurement_type_protein">Protein</string>
+    <string name="measurement_type_bcm">Body cell mass</string>
+    <string name="s400_bone_formula_label">Bone formula</string>
+    <string name="s400_bone_formula_mi_legacy">Impedance-based regression (Legacy)</string>
+    <string name="s400_bone_formula_heymsfield">Heymsfield (anthropometric)</string>
+    <string name="s400_bmr_formula_label">BMR formula</string>
+    <string name="s400_bmr_formula_cun91">Cunningham 1991</string>
+    <string name="s400_bmr_formula_cun80">Cunningham 1980</string>
     <string name="measurement_type_tdee">TDEE</string>
     <string name="measurement_type_calories">Calories</string>
     <string name="measurement_type_comment">Comment</string>
@@ -236,6 +264,7 @@
     <string name="formula_lbm_boer_1984">Boer (1984)</string>
     <string name="formula_lbm_hume_1966">Hume (1966)</string>
     <string name="formula_lbm_weight_minus_body_fat">Weight − Body Fat</string>
+    <string name="formula_bf_us_navy">U.S. Navy</string>
 
     <string name="formula_desc_off_short">No automatic calculation</string>
     <string name="formula_desc_off_long">This metric is not auto-calculated. You can enter values manually.</string>
@@ -263,6 +292,8 @@
     <string name="lbm_hume_1966_long">Early LBM model. Simple and widely used; not tailored to very athletic builds.</string>
     <string name="lbm_weight_minus_bf_short">Weight − Body Fat</string>
     <string name="lbm_weight_minus_bf_long">Computes LBM as total weight minus fat mass derived from the chosen body-fat formula. Accuracy depends on the BF estimate.</string>
+    <string name="bf_us_navy_short">U.S. Navy method</string>
+    <string name="bf_us_navy_long">Calculates body fat percentage based on waist, neck, and (for females) hip circumferences according to the U.S. Navy standard.</string>
 
     <string name="batch_update_status_report">%1$d: %2$s</string>
     <string name="dialog_title_confirm_generic">Confirm %1$s?</string>
@@ -357,6 +388,18 @@
     <string name="tolerance_desc">Max. weight deviation to automatically assign to a user.</string>
     <string name="developer_section_title">Developer</string>
     <string name="danger_zone_title">Danger Zone</string>
+    <string name="auto_connect_on_startup_title">Auto-connect on startup</string>
+
+    <!-- Scale Configuration (generic, shown when a handler declares config fields) -->
+    <string name="scale_configuration_title">Scale Configuration</string>
+    <string name="no_special_configuration_available">No additional special configuration available for this device.</string>
+
+    <!-- S400 Scale Configuration -->
+    <string name="s400_bind_key_label">BLE Bind Key</string>
+    <string name="s400_bind_key_placeholder">32-character hex key</string>
+    <string name="s400_bind_key_description">The Xiaomi S400 scale requires a BLE bind key for decryption. Extract this key from Xiaomi Cloud using the Xiaomi Cloud Tokens Extractor tool.</string>
+    <string name="s400_bind_key_error">Bind key must be exactly 32 hex characters</string>
+    <string name="bt_s400_missing_bind_key">S400: Bind key not configured. Go to Bluetooth settings to enter your BLE key.</string>
 
     <!-- Bluetooth Connector -->
     <string name="bluetooth_connector_connected_to">Connected to %1$s</string>
@@ -422,6 +465,14 @@
     <string name="time_range_last_365_days">Last 365 Days</string>
     <string name="time_range_custom">Custom Days</string>
     <string name="time_range_custom_from_to">From %1$s to %2$s</string>
+    <string name="filter_section_time_range">Time range</string>
+    <string name="filter_section_aggregation">Aggregation</string>
+    <string name="content_description_aggregation_selected">%1$s selected</string>
+    <string name="aggregation_level_none">No Aggregation</string>
+    <string name="aggregation_level_day">Day</string>
+    <string name="aggregation_level_week">Week</string>
+    <string name="aggregation_level_month">Months</string>
+    <string name="aggregation_level_year">Year</string>
     <string name="line_chart_no_plottable_types">No plottable chart types available.</string>
     <string name="line_chart_no_data_to_display">No data to display.</string>
     <string name="line_chart_no_data_for_type_in_range">No data for %1$s in the selected range.</string>
@@ -455,12 +506,75 @@
     <string name="dialog_message_delete_selected_items">Are you sure you want to delete the selected %1$d items? This action cannot be undone.</string>
     <string name="dialog_title_delete_type">Delete Type?</string>
     <string name="dialog_text_delete_type">Are you sure you want to delete the custom type “%1$s”? All associated measurements will also be permanently deleted. This action cannot be undone.</string>
-    <string name="snackbar_items_deleted_successfully">%1$d items deleted successfully.</string>
-    <string name="snackbar_error_deleting_items">Error deleting items.</string>
+    <string name="snackbar_items_deleted_successfully">%1$d measurements deleted</string>
+    <string name="snackbar_items_delete_partial_failure">Couldn\'t delete %1$d of %2$d measurements.</string>
     <string name="dialog_title_select_user_for_assignment">Select User for Assignment</string>
     <string name="snackbar_no_other_users_to_change_to">No other users available to change to.</string>
-    <string name="snackbar_items_user_changed_successfully">User changed for %1$d items successfully.</string>
-    <string name="snackbar_error_user_changed_items">Error changing user for some items.</string>
+    <string name="snackbar_items_user_changed_successfully">%1$d measurements moved</string>
+    <string name="snackbar_items_move_partial_failure">Couldn\'t move %1$d of %2$d measurements (already exist for that user).</string>
+
+    <!-- Insights Screen -->
+    <string name="insights_confidence_low">Limited data</string>
+    <string name="insights_section_measurement_analysis">Your %1$s Analysis</string>
+    <string name="insights_label_recomposition">Recomposition</string>
+    <string name="insights_label_bulking">Bulking</string>
+    <string name="insights_label_mixed_loss">Mixed Loss</string>
+    <string name="insights_label_fat_gain">Fat Gain</string>
+    <string name="insights_placeholder_measurement_analysis">At least %1$d measurements are needed to analyse how your body changed over time.</string>
+    <string name="insights_placeholder_weekday">At least %1$d measurements per weekday are needed to detect weekly habits.</string>
+    <string name="insights_placeholder_seasonal">At least %1$d years of data are needed to detect seasonal patterns.</string>
+    <string name="insights_placeholder_anomalies">At least %1$d measurements are needed to detect unusual values.</string>
+    <string name="insights_best_period_label">Best month</string>
+    <string name="insights_trend_up">Increasing</string>
+    <string name="insights_trend_down">Decreasing</string>
+    <string name="insights_trend_stable">Stable</string>
+    <string name="insights_rate_per_month">Rate / month</string>
+    <string name="insights_volatility">Volatility</string>
+    <string name="insights_volatility_stable">Stable</string>
+    <string name="insights_volatility_moderate">Moderate</string>
+    <string name="insights_volatility_high">High</string>
+    <string name="insights_plateau_label">Stable period</string>
+    <string name="insights_plateau_days">%1$d days</string>
+    <string name="insights_section_weekday">Your Weekly Habits</string>
+    <string name="insights_weekday_summary_high">You tend to measure highest on %1$s and lowest on %2$s</string>
+    <string name="insights_weekday_summary_low">Preliminary pattern — measure more regularly for reliable results</string>
+    <string name="insights_section_seasonal">Your Year in Review</string>
+    <string name="insights_seasonal_summary_high">Your values tend to peak in %1$s and dip in %2$s</string>
+    <string name="insights_seasonal_summary_low">Only one year of data — keep measuring to reveal seasonal patterns</string>
+    <string name="insights_section_anomalies">Unusual Measurements</string>
+    <string name="insights_anomalies_none">No unusual measurements detected.</string>
+    <string name="insights_anomaly_deviation">%1$s from expected %2$s</string>
+    <string name="insights_anomaly_comment">"%1$s"</string>
+    <string name="insights_summary_plateau">No significant change for %1$d days — your body may be adapting.</string>
+    <string name="insights_summary_trend_change_down">Recent downward trend — positive change compared to your long-term direction.</string>
+    <string name="insights_summary_trend_change_up">Recent upward trend — keep an eye on the long-term direction.</string>
+    <string name="insights_summary_volatility_high">High fluctuation detected — this is common and can reflect natural body changes like water retention.</string>
+    <string name="insights_summary_volatility_stable">Your values are very consistent — reliable data basis.</string>
+    <string name="insights_section_body_pattern">Your Body Composition</string>
+    <string name="insights_placeholder_body_pattern">At least %1$d measurements with all four metrics (weight, body fat, muscle, water) are needed within the last %2$d days to compute this insight.</string>
+    <string name="insights_pattern_summary_fat_loss">Weight and fat are dropping while muscle mass is being preserved or even slightly growing — you are losing primarily fat mass.</string>
+    <string name="insights_pattern_summary_recomposition">Your body is efficiently recomposing: you are losing fat while simultaneously building significant muscle mass.</string>
+    <string name="insights_pattern_summary_muscle_gain">You are gaining muscle mass while body fat remains stable or decreases — a positive body composition trend.</string>
+    <string name="insights_pattern_summary_weight_loss_mixed">Warning: You are losing weight, but your muscle mass is also declining.</string>
+    <string name="insights_pattern_summary_fat_gain">Fat mass is increasing. If this is not a deliberate bulk, consider reviewing your activity levels.</string>
+    <string name="insights_pattern_summary_fat_gain_with_muscle">Both fat and muscle are increasing — this looks like a bulk phase. If muscle gain is your goal, consider whether the fat increase is within your target range.</string>
+    <string name="insights_pattern_summary_stable">All metrics are stable — you are in a maintenance phase.</string>
+    <string name="insights_pattern_summary_undefined">No clear pattern detected yet — more measurements including weight, body fat, muscle, and water are needed.</string>
+    <string name="insights_pattern_summary_undefined_with_data">Mixed signals in %1$s — weight, fat, and muscle trends don\'t match a clear pattern yet.</string>
+    <string name="insights_zone_tooltip_recomposition">Fat is decreasing while muscle is increasing — the best possible outcome.</string>
+    <string name="insights_zone_tooltip_bulking">Both fat and muscle are increasing.</string>
+    <string name="insights_zone_tooltip_mixed_loss">Both fat and muscle are decreasing. Weight is dropping, but muscle mass is also being lost.</string>
+    <string name="insights_zone_tooltip_fat_gain">Fat is increasing while muscle is decreasing or stable — the least favourable outcome.</string>
+    <string name="insights_stat_start">Start</string>
+    <string name="insights_stat_now">Now</string>
+    <string name="insights_stat_rate_month">Rate / month</string>
+    <string name="insights_stat_on_average">on average</string>
+    <string name="insights_chip_volatility_stable">stable</string>
+    <string name="insights_chip_volatility_moderate">moderate</string>
+    <string name="insights_chip_volatility_high">volatile</string>
+    <string name="insights_chip_plateau_days">plateau %1$d days</string>
+    <string name="insights_short_term_trend">short-term</string>
+    <string name="insights_long_term_trend">long-term</string>
 
     <!-- Statistics Screen -->
     <string name="statistics_no_relevant_types">No relevant measurement types available or configured for statistics.</string>
@@ -495,6 +609,9 @@
     <string name="reminder_notification_title">openScale</string>
     <string name="settings_reminder_days_label">Days</string>
     <string name="permission_denied">Notifications permission denied</string>
+    <string name="settings_appearance_title">Appearance</string>
+    <string name="settings_dynamic_color_label">Dynamic colors</string>
+    <string name="settings_high_contrast_label">High contrast</string>
 
     <string name="monday_short">Mon</string>
     <string name="tuesday_short">Tue</string>
@@ -553,6 +670,35 @@
     <string name="log_export_cancelled">Export cancelled.</string>
     <string name="log_export_no_app_error">No suitable app found to export the file.</string>
     <string name="export_log_file_button">Export Log File</string>
+    <!-- Developer Tools (Debug only, not translatable) -->
+    <string name="dev_tools_title" translatable="false">Developer Tools</string>
+    <string name="dev_tools_scenario_label" translatable="false">Scenario</string>
+    <string name="dev_tools_time_range_label" translatable="false">Time Range</string>
+    <string name="dev_tools_wipe_data_label" translatable="false">Wipe existing data</string>
+    <string name="dev_tools_generate_button" translatable="false">Generate Demo Data</string>
+    <string name="dev_tools_range_30_days" translatable="false">Last 30 days</string>
+    <string name="dev_tools_range_6_months" translatable="false">Last 6 months</string>
+    <string name="dev_tools_range_2_years" translatable="false">Last 2 years</string>
+    <string name="dev_tools_range_4_years" translatable="false">Last 4 years</string>
+    <string name="dev_tools_dialog_title" translatable="false">Irreversible Action</string>
+    <string name="dev_tools_dialog_wipe_warning" translatable="false">This will DELETE ALL measurements for the current user and replace them with demo data. This cannot be undone!</string>
+    <string name="dev_tools_dialog_add_warning" translatable="false">This will add many mock measurements to the current user profile.</string>
+    <string name="dev_tools_dialog_confirm" translatable="false">Confirm &amp; Generate</string>
+    <string name="dev_tools_toast_generating" translatable="false">Generating %1$d measurements for %2$s…</string>
+    <string name="dev_tools_toast_success" translatable="false">Successfully generated %1$d measurements for %2$s</string>
+    <string name="dev_tools_scenario_recomposition" translatable="false">Recomposition</string>
+    <string name="dev_tools_scenario_stable" translatable="false">Stable (Plateau)</string>
+    <string name="dev_tools_scenario_trend" translatable="false">Trend Progress</string>
+    <string name="dev_tools_scenario_muscle_gain" translatable="false">Muscle Gain (fat stable)</string>
+    <string name="dev_tools_scenario_bulk" translatable="false">Bulk (fat + muscle up)</string>
+    <string name="dev_tools_scenario_fat_loss" translatable="false">Fat Loss (muscle stable)</string>
+    <string name="dev_tools_scenario_fat_gain" translatable="false">Fat Gain (muscle stable)</string>
+    <string name="dev_tools_scenario_mixed_loss" translatable="false">Mixed Loss (fat + muscle down)</string>
+    <string name="dev_tools_scenario_with_anomalies" translatable="false">With Anomalies (z-score spikes)</string>
+    <string name="dev_tools_scenario_seasonal" translatable="false">Seasonal Pattern (2+ years)</string>
+    <string name="dev_tools_scenario_weekday_habits" translatable="false">Weekday Habits (daily cadence)</string>
+    <string name="dev_tools_scenario_sparse_metrics" translatable="false">Sparse Metrics (weight only)</string>
+    <string name="dev_tools_scenario_with_gaps" translatable="false">With Gaps (30d+ breaks)</string>
 
     <!-- Data Management (Export, Import, Backup, Restore, Delete) -->
     <string name="settings_export_measurements_csv">Export measurements (CSV)</string>

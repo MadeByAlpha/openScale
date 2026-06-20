@@ -20,8 +20,10 @@ package com.health.openscale.core.facade
 import android.app.Application
 import android.bluetooth.BluetoothManager
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import com.health.openscale.core.bluetooth.BluetoothEvent
 import com.health.openscale.core.bluetooth.ScaleFactory
 import com.health.openscale.core.bluetooth.data.ScaleUser
@@ -30,6 +32,10 @@ import com.health.openscale.core.bluetooth.scales.TuningProfile
 import com.health.openscale.core.data.ConnectionStatus
 import com.health.openscale.core.data.User
 import com.health.openscale.core.utils.LogManager
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -44,6 +50,47 @@ import com.health.openscale.core.service.BleConnector
 import com.health.openscale.ui.shared.SnackbarEvent
 
 /**
+ * Abstraction over Bluetooth orchestration consumed by [com.health.openscale.ui.screen.settings.BluetoothViewModel].
+ *
+ * Extracted as an interface so the ViewModel can be unit-tested against a fake without the real
+ * BLE stack. The production implementation is [BluetoothFacadeImpl]; Hilt binds it via
+ * [BluetoothFacadeBindsModule]. Behaviour is unchanged versus the previous concrete facade.
+ */
+interface BluetoothFacade {
+    val snackbarEventsFromConnector: SharedFlow<SnackbarEvent>
+
+    val scannedDevices: StateFlow<List<ScannedDeviceInfo>>
+    val isScanning: StateFlow<Boolean>
+    val scanError: StateFlow<String?>
+
+    val connectedDeviceAddress: StateFlow<String?>
+    val connectionStatus: StateFlow<ConnectionStatus>
+    val connectionError: StateFlow<String?>
+
+    val pendingUserInteractionEvent: StateFlow<BluetoothEvent.UserInteractionRequired?>
+
+    val savedDevice: StateFlow<ScannedDeviceInfo?>
+    val savedDeviceSupport: StateFlow<DeviceSupport?>
+
+    fun startScan(durationMs: Long)
+    fun stopScan()
+    fun connectToSavedDevice()
+    fun attemptAutoConnectToSavedDevice()
+    fun disconnect()
+    fun saveAsPreferred(device: ScannedDeviceInfo)
+    fun removeSavedDevice()
+    fun setSavedTuning(profile: TuningProfile)
+    fun clearErrors()
+    fun clearPendingUserInteraction()
+    fun provideUserInteractionFeedback(type: BluetoothEvent.UserInteractionType, feedbackData: Any)
+    fun isBluetoothEnabled(): Boolean
+    fun close()
+
+    @Composable
+    fun DeviceConfigurationUi()
+}
+
+/**
  * Facade responsible for orchestrating Bluetooth operations.
  *
  * This class encapsulates scanning, connection management,
@@ -51,17 +98,17 @@ import com.health.openscale.ui.shared.SnackbarEvent
  * It exposes state as [StateFlow]s for UI consumption and emits one-shot messages
  * for transient events (e.g., Snackbar notifications).
  *
- * By consolidating Bluetooth-related logic here, [BluetoothViewModel] stays
+ * By consolidating Bluetooth-related logic here, BluetoothViewModel stays
  * lightweight and UI-focused.
  */
 @Singleton
-class BluetoothFacade @Inject constructor(
+class BluetoothFacadeImpl @Inject constructor(
     private val application: Application,
     private val scaleFactory: ScaleFactory,
     private val measurementFacade: MeasurementFacade,
     private val userFacade: UserFacade,
     private val settingsFacade: SettingsFacade,
-) {
+) : BluetoothFacade {
     private val TAG = "BluetoothFacade"
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate)
@@ -75,28 +122,29 @@ class BluetoothFacade @Inject constructor(
         getCurrentScaleUser = { currentBtScaleUser.value }
     )
 
-    val snackbarEventsFromConnector: SharedFlow<SnackbarEvent> = connection.snackbarEvents
+    override val snackbarEventsFromConnector: SharedFlow<SnackbarEvent> = connection.snackbarEvents
 
     // --- Publicly observable state ---
-    val scannedDevices: StateFlow<List<ScannedDeviceInfo>> = scanner.scannedDevices
-    val isScanning: StateFlow<Boolean> = scanner.isScanning
-    val scanError: StateFlow<String?> = scanner.scanError
+    override val scannedDevices: StateFlow<List<ScannedDeviceInfo>> = scanner.scannedDevices
+    override val isScanning: StateFlow<Boolean> = scanner.isScanning
+    override val scanError: StateFlow<String?> = scanner.scanError
 
-    val connectedDeviceAddress: StateFlow<String?> = connection.connectedDeviceAddress
-    val connectionStatus: StateFlow<ConnectionStatus> = connection.connectionStatus
-    val connectionError: StateFlow<String?> = connection.connectionError
+    override val connectedDeviceAddress: StateFlow<String?> = connection.connectedDeviceAddress
+    override val connectionStatus: StateFlow<ConnectionStatus> = connection.connectionStatus
+    override val connectionError: StateFlow<String?> = connection.connectionError
 
-    val pendingUserInteractionEvent: StateFlow<BluetoothEvent.UserInteractionRequired?> =
+    override val pendingUserInteractionEvent: StateFlow<BluetoothEvent.UserInteractionRequired?> =
         connection.userInteractionRequiredEvent
 
-    fun clearPendingUserInteraction() {
+    override fun clearPendingUserInteraction() {
         connection.clearUserInteractionEvent()
     }
 
-    val savedDevice: StateFlow<ScannedDeviceInfo?> =
+    override val savedDevice: StateFlow<ScannedDeviceInfo?> =
         settingsFacade.observeSavedDevice()
             .stateIn(scope, SharingStarted.WhileSubscribed(5000), null)
 
+    // internal only (used by savedDeviceSupport); not part of the public interface
     val savedTuningProfile: StateFlow<TuningProfile> =
         combine(savedDevice, settingsFacade.savedBluetoothTuneProfile) { dev, stored ->
             if (dev == null) TuningProfile.Balanced
@@ -104,16 +152,29 @@ class BluetoothFacade @Inject constructor(
                 .getOrDefault(TuningProfile.Balanced)
         }.stateIn(scope, SharingStarted.WhileSubscribed(5000), TuningProfile.Balanced)
 
-    val savedDeviceSupport: StateFlow<DeviceSupport?> =
+    override val savedDeviceSupport: StateFlow<DeviceSupport?> =
         combine(savedDevice, savedTuningProfile) { dev, tuning ->
             if (dev == null) return@combine null
             val base = scaleFactory.getDeviceSupportFor(dev.name, dev.address) ?: return@combine null
             base.copy(tuningProfile = tuning)
         }.stateIn(scope, SharingStarted.WhileSubscribed(5000), null)
 
-    fun setSavedTuning(profile: TuningProfile) {
+    override fun setSavedTuning(profile: TuningProfile) {
         scope.launch {
             settingsFacade.saveBluetoothTuneProfile(profile.name)
+        }
+    }
+
+    @Composable
+    override fun DeviceConfigurationUi() {
+        val device by savedDevice.collectAsState()
+
+        device?.let { dev ->
+            // Create or remember the communicator for the current saved device
+            val communicator = remember(dev) { scaleFactory.createCommunicator(dev) }
+
+            // Render the device-specific UI directly from the communicator
+            communicator?.DeviceConfigurationUi()
         }
     }
 
@@ -141,19 +202,19 @@ class BluetoothFacade @Inject constructor(
             id = u.id
             userName = u.name
             birthday = Date(u.birthDate)
-            bodyHeight = u.heightCm ?: 0f
+            bodyHeight = u.heightCm
             gender = u.gender
         }
 
     // --- API: Scanning & Connection ---
-    fun startScan(durationMs: Long) {
+    override fun startScan(durationMs: Long) {
         clearErrors()
         scanner.startScan(durationMs)
     }
 
-    fun stopScan() = scanner.stopScan()
+    override fun stopScan() = scanner.stopScan()
 
-    fun connectToSavedDevice() {
+    override fun connectToSavedDevice() {
         scope.launch {
             val dev = savedDevice.value
             if (dev == null) {
@@ -178,46 +239,57 @@ class BluetoothFacade @Inject constructor(
         }
     }
 
-    fun attemptAutoConnectToSavedDevice() = connectToSavedDevice()
+    override fun attemptAutoConnectToSavedDevice() = connectToSavedDevice()
 
-    fun disconnect() = connection.disconnect()
+    override fun disconnect() = connection.disconnect()
 
-    fun saveAsPreferred(device: ScannedDeviceInfo) {
+    override fun saveAsPreferred(device: ScannedDeviceInfo) {
         scope.launch {
             settingsFacade.saveSavedDevice(device)
         }
     }
 
-    fun removeSavedDevice() {
+    override fun removeSavedDevice() {
         scope.launch {
             settingsFacade.clearSavedBluetoothScale()
+            settingsFacade.clearBleDriverSettings()
             settingsFacade.saveBluetoothTuneProfile(null)
         }
     }
 
-    fun provideUserInteractionFeedback(type: BluetoothEvent.UserInteractionType, feedbackData: Any) {
+    override fun provideUserInteractionFeedback(type: BluetoothEvent.UserInteractionType, feedbackData: Any) {
         val user = currentAppUser.value ?: run {
             connection.clearUserInteractionEvent()
             return
         }
         scope.launch {
-            connection.provideUserInteractionFeedback(type,user.id, feedbackData)
+            connection.provideUserInteractionFeedback(type, user.id, feedbackData)
             connection.clearUserInteractionEvent()
         }
     }
 
-    fun clearErrors() {
+    override fun clearErrors() {
         scanner.clearScanError()
         connection.clearConnectionError()
     }
 
-    fun isBluetoothEnabled(): Boolean {
+    override fun isBluetoothEnabled(): Boolean {
         val mgr = application.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager?
         return mgr?.adapter?.isEnabled ?: false
     }
 
-    fun close() {
+    override fun close() {
         scanner.close()
         connection.close()
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+interface BluetoothFacadeBindsModule {
+    // Invoked by Hilt's generated code only; the IDE cannot see that usage.
+    @Suppress("unused")
+    @Binds
+    @Singleton
+    fun bindBluetoothFacade(impl: BluetoothFacadeImpl): BluetoothFacade
 }

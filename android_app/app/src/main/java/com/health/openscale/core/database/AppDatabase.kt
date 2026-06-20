@@ -26,6 +26,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.health.openscale.core.data.Measurement
 import com.health.openscale.core.data.MeasurementType
+import com.health.openscale.core.data.MeasurementTypeKey
 import com.health.openscale.core.data.MeasurementValue
 import com.health.openscale.core.data.User
 import com.health.openscale.core.data.UserIcon
@@ -46,7 +47,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): AppDatabase =
         Room.databaseBuilder(ctx, AppDatabase::class.java, AppDatabase.Companion.DATABASE_NAME)
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
             .build()
 
     @Provides
@@ -73,7 +74,7 @@ object DatabaseModule {
         MeasurementValue::class,
         MeasurementType::class,
     ],
-    version = 13,
+    version = 15,
     exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)
@@ -331,5 +332,122 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         db.execSQL("DROP INDEX IF EXISTS `index_MeasurementType_key`")
 
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_MeasurementType_key` ON `MeasurementType`(`key`)")
+    }
+}
+
+// In AppDatabase.kt
+
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Step 1: Add HEART_RATE if it's missing, using INSERT OR IGNORE.
+        // We find the definition from the default list to get its properties (color, icon, etc.).
+        val heartRateType = getDefaultMeasurementTypes().find { it.key == MeasurementTypeKey.HEART_RATE }
+
+        if (heartRateType != null) {
+            db.execSQL(
+                """
+                INSERT OR IGNORE INTO MeasurementType 
+                    (`key`, `name`, `color`, `icon`, `unit`, `inputType`, `displayOrder`,
+                     `isDerived`, `isEnabled`, `isPinned`, `isOnRightYAxis`)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent(),
+                arrayOf<Any?>(
+                    heartRateType.key.name,
+                    null,
+                    heartRateType.color,
+                    heartRateType.icon.name,
+                    heartRateType.unit.name,
+                    heartRateType.inputType.name,
+                    -1, // Use a temporary displayOrder to avoid conflicts
+                    if (heartRateType.isDerived) 1 else 0,
+                    if (heartRateType.isEnabled) 1 else 0,
+                    if (heartRateType.isPinned) 1 else 0,
+                    if (heartRateType.isOnRightYAxis) 1 else 0
+                )
+            )
+        }
+
+        // Step 2: Re-order ALL existing types to match the getDefaultMeasurementTypes() list.
+        // This ensures the order is identical for new installs and migrated users.
+        val defaultTypesInOrder = getDefaultMeasurementTypes()
+        db.beginTransaction()
+        try {
+            defaultTypesInOrder.forEachIndexed { index, measurementType ->
+                val displayOrder = index + 1 // Room/SQL indices are often 1-based
+                db.execSQL(
+                    "UPDATE MeasurementType SET displayOrder = ? WHERE `key` = ?",
+                    arrayOf<Any?>(displayOrder, measurementType.key.name)
+                )
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+}
+
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add the `isInternal` column used to hide raw inputs (e.g. BIA
+        // impedance bands) from end-user UI while keeping them in the DB for
+        // re-derivation when formulas change.
+        db.execSQL(
+            "ALTER TABLE MeasurementType " +
+            "ADD COLUMN isInternal INTEGER NOT NULL DEFAULT 0"
+        )
+
+        // Seed the six new MeasurementTypes introduced for S400 dual-frequency
+        // body composition: IMPEDANCE, IMPEDANCE_LOW (raw band readings) and
+        // ECW, ICW, PROTEIN, BCM (derived). All disabled by default; new
+        // installs receive them via getDefaultMeasurementTypes().
+        val newKeys = setOf(
+            MeasurementTypeKey.IMPEDANCE,
+            MeasurementTypeKey.IMPEDANCE_LOW,
+            MeasurementTypeKey.ECW,
+            MeasurementTypeKey.ICW,
+            MeasurementTypeKey.PROTEIN,
+            MeasurementTypeKey.BCM,
+        )
+        val newTypes = getDefaultMeasurementTypes().filter { it.key in newKeys }
+        newTypes.forEach { type ->
+            db.execSQL(
+                """
+                INSERT OR IGNORE INTO MeasurementType
+                    (`key`, `name`, `color`, `icon`, `unit`, `inputType`, `displayOrder`,
+                     `isDerived`, `isEnabled`, `isPinned`, `isOnRightYAxis`, `isInternal`)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent(),
+                arrayOf<Any?>(
+                    type.key.name,
+                    null,
+                    type.color,
+                    type.icon.name,
+                    type.unit.name,
+                    type.inputType.name,
+                    -1,
+                    if (type.isDerived) 1 else 0,
+                    if (type.isEnabled) 1 else 0,
+                    if (type.isPinned) 1 else 0,
+                    if (type.isOnRightYAxis) 1 else 0,
+                    if (type.isInternal) 1 else 0
+                )
+            )
+        }
+
+        // Re-apply displayOrder to keep new + existing types aligned with the
+        // canonical order from getDefaultMeasurementTypes().
+        val defaultTypesInOrder = getDefaultMeasurementTypes()
+        db.beginTransaction()
+        try {
+            defaultTypesInOrder.forEachIndexed { index, measurementType ->
+                db.execSQL(
+                    "UPDATE MeasurementType SET displayOrder = ? WHERE `key` = ?",
+                    arrayOf<Any?>(index + 1, measurementType.key.name)
+                )
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 }

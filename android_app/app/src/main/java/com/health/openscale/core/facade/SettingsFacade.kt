@@ -71,6 +71,8 @@ object SettingsPreferenceKeys {
     val CURRENT_USER_ID = intPreferencesKey("current_user_id")
     val APP_LANGUAGE_CODE = stringPreferencesKey("app_language_code")
     val HAPTIC_ON_MEASUREMENT = booleanPreferencesKey("haptic_on_measurement")
+    val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+    val USE_HIGH_CONTRAST = booleanPreferencesKey("use_high_contrast")
 
     // Settings for specific UI components
     val SELECTED_TYPES_TABLE = stringSetPreferencesKey("selected_types_table") // IDs of measurement types selected for the data table
@@ -87,6 +89,7 @@ object SettingsPreferenceKeys {
     val SAVED_BLUETOOTH_SMART_ASSIGNMENT_ENABLED = booleanPreferencesKey("saved_bluetooth_smart_assignment_enabled")
     val SAVED_BLUETOOTH_TOLERANCE_PERCENT = intPreferencesKey("saved_bluetooth_tolerance_percent")
     val SAVED_BLUETOOTH_IGNORE_OUTSIDE_TOLERANCE = booleanPreferencesKey("saved_bluetooth_ignore_outside_tolerance")
+    val SAVED_BLUETOOTH_AUTO_CONNECT = booleanPreferencesKey("saved_bluetooth_auto_connect")
 
     // Settings for chart
     val CHART_SHOW_DATA_POINTS = booleanPreferencesKey("chart_show_data_points")
@@ -121,7 +124,9 @@ object SettingsPreferenceKeys {
     // Context strings for screen-specific settings (can be used as prefixes for dynamic keys)
     const val OVERVIEW_SCREEN_CONTEXT = "overview_screen"
     const val GRAPH_SCREEN_CONTEXT = "graph_screen"
+    const val TABLE_SCREEN_CONTEXT = "table_screen"
     const val STATISTICS_SCREEN_CONTEXT = "statistics_screen"
+    const val INSIGHTS_SCREEN_CONTEXT = "insights_screen"
 }
 
 @Module
@@ -163,6 +168,12 @@ interface SettingsFacade {
     val hapticOnMeasurement: Flow<Boolean>
     suspend fun setHapticOnMeasurement(value: Boolean)
 
+    val useDynamicColor: Flow<Boolean>
+    suspend fun setUseDynamicColor(enabled: Boolean)
+
+    val useHighContrast: Flow<Boolean>
+    suspend fun setHighContrast(enabled: Boolean)
+
     val currentUserId: Flow<Int?>
     suspend fun setCurrentUserId(userId: Int?)
 
@@ -180,6 +191,7 @@ interface SettingsFacade {
     fun observeSavedDevice(): Flow<ScannedDeviceInfo?>
     suspend fun saveSavedDevice(device: ScannedDeviceInfo)
     suspend fun clearSavedBluetoothScale()
+    suspend fun clearBleDriverSettings()
 
     val savedBluetoothTuneProfile: Flow<String?>
     suspend fun saveBluetoothTuneProfile(name: String?)
@@ -263,6 +275,9 @@ interface SettingsFacade {
 
     val selectedLbmFormula: Flow<LbmFormulaOption>
     suspend fun setSelectedLbmFormula(option: LbmFormulaOption)
+
+    val autoConnectOnStartup: Flow<Boolean>
+    suspend fun setAutoConnectOnStartup(enabled: Boolean)
 
     // Generic Settings Accessors
     /**
@@ -351,6 +366,24 @@ class SettingsFacadeImpl @Inject constructor(
         saveSetting(SettingsPreferenceKeys.HAPTIC_ON_MEASUREMENT.name, value)
     }
 
+    override val useDynamicColor: Flow<Boolean> = observeSetting(
+        SettingsPreferenceKeys.USE_DYNAMIC_COLOR.name,
+        false
+    )
+
+    override suspend fun setUseDynamicColor(enabled: Boolean) {
+        saveSetting(SettingsPreferenceKeys.USE_DYNAMIC_COLOR.name, enabled)
+    }
+
+    override val useHighContrast: Flow<Boolean> = observeSetting(
+        SettingsPreferenceKeys.USE_HIGH_CONTRAST.name,
+        false
+    )
+
+    override suspend fun setHighContrast(enabled: Boolean) {
+        saveSetting(SettingsPreferenceKeys.USE_HIGH_CONTRAST.name, enabled)
+    }
+
     override val currentUserId: Flow<Int?> = dataStore.data
         .catch { exception ->
             LogManager.e(TAG, "Error reading currentUserId from DataStore.", exception)
@@ -437,7 +470,7 @@ class SettingsFacadeImpl @Inject constructor(
             val hint        = array[4] as String?
             val manDataJson = array[5] as String?
 
-            if (addr.isNullOrBlank() || name.isNullOrBlank()) {
+            if (addr.isNullOrBlank()) {
                 null
             } else {
                 // Convert to UUID list with stable ordering to keep distinctUntilChanged effective
@@ -458,7 +491,7 @@ class SettingsFacadeImpl @Inject constructor(
                 }
 
                 ScannedDeviceInfo(
-                    name = name,
+                    name = name ?: "",
                     address = addr,
                     rssi = rssi,
                     serviceUuids = uuids,
@@ -507,6 +540,18 @@ class SettingsFacadeImpl @Inject constructor(
             prefs.remove(SettingsPreferenceKeys.SAVED_BLUETOOTH_DEVICE_SERVICE_UUIDS)
             prefs.remove(SettingsPreferenceKeys.SAVED_BLUETOOTH_DEVICE_HANDLER_HINT)
             prefs.remove(SettingsPreferenceKeys.SAVED_BLUETOOTH_DEVICE_MANUFACTURER_DATA)
+            prefs.remove(SettingsPreferenceKeys.SAVED_BLUETOOTH_AUTO_CONNECT)
+        }
+    }
+
+    override suspend fun clearBleDriverSettings() {
+        LogManager.i(TAG, "Clearing all BLE driver settings (consent codes, user mappings).")
+        dataStore.edit { prefs ->
+            val bleKeys = prefs.asMap().keys.filter { it.name.startsWith("ble/") }
+            for (key in bleKeys) {
+                prefs.remove(key)
+            }
+            LogManager.d(TAG, "Removed ${bleKeys.size} BLE driver setting(s).")
         }
     }
 
@@ -533,6 +578,15 @@ class SettingsFacadeImpl @Inject constructor(
                 preferences.remove(SettingsPreferenceKeys.SAVED_BLUETOOTH_TUNE_PROFILE)
             }
         }
+    }
+
+    override val autoConnectOnStartup: Flow<Boolean> = observeSetting(
+        SettingsPreferenceKeys.SAVED_BLUETOOTH_AUTO_CONNECT.name,
+        false
+    )
+
+    override suspend fun setAutoConnectOnStartup(enabled: Boolean) {
+        saveSetting(SettingsPreferenceKeys.SAVED_BLUETOOTH_AUTO_CONNECT.name, enabled)
     }
 
     override val isSmartAssignmentEnabled: Flow<Boolean> = observeSetting(

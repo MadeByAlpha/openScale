@@ -17,10 +17,7 @@
  */
 package com.health.openscale.core.bluetooth.scales
 
-import androidx.datastore.preferences.core.PreferencesSerializer.writeTo
 import com.health.openscale.core.bluetooth.data.ScaleUser
-import com.health.openscale.core.bluetooth.scales.SanitasSbf72Handler.Companion.CHR_SBF72_USER_LIST
-import com.health.openscale.core.bluetooth.scales.SanitasSbf72Handler.Companion.SVC_SBF72_CUSTOM
 import com.health.openscale.core.data.ActivityLevel
 import com.health.openscale.core.data.GenderType
 import com.health.openscale.core.service.ScannedDeviceInfo
@@ -97,7 +94,7 @@ class StandardBeurerSanitasHandler : StandardWeightProfileHandler() {
 
     // Model detection; constructor stays empty.
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
-        val name = device.name?.lowercase().orEmpty()
+        val name = device.name.lowercase()
 
         val model = when {
             "bf105" in name || "bf720" in name -> Model.BEURER_BF105
@@ -148,6 +145,13 @@ class StandardBeurerSanitasHandler : StandardWeightProfileHandler() {
                 }
             }
         }
+    }
+
+    override fun writeUserDataToScale() {
+        super.writeUserDataToScale() // standard UDS writes (DOB, gender, height, change increment)
+
+        val user = currentAppUser()
+        val p = profile ?: return
 
         p.chrActivity?.let {
             logD("Writing activity level for userId=${user.id} to chrActivity=${it}")
@@ -197,8 +201,15 @@ class StandardBeurerSanitasHandler : StandardWeightProfileHandler() {
 
         when (userListStatus) {
             2 -> {
-                // Status=2 -> no user on scale
-                logD("no user on scale")
+                // Status=2 -> no user on scale; clear any stale mapping and offer registration
+                logD("No users on scale, presenting create-only choice")
+                val appId = user.id
+                findKnownScaleIndexForAppUser(appId)?.let { idx ->
+                    saveUserIdForScaleIndex(idx, -1)
+                    saveConsentForScaleIndex(idx, -1)
+                    logD("Cleared stale mapping for appUserId=$appId at scaleIndex=$idx")
+                }
+                presentCreateOnlyChoice()
                 return
             }
 
@@ -207,7 +218,7 @@ class StandardBeurerSanitasHandler : StandardWeightProfileHandler() {
                 logD("User-list received")
                 val scaleIndex = findKnownScaleIndexForAppUser(user.id) ?: -1
                 if (loadConsentForScaleIndex(scaleIndex) == -1) {
-                    presentChooseFromIndices(scaleUserList.map { it.id })
+                    presentChooseFromUsers(scaleUserList)
                 }
 
                 return
@@ -260,7 +271,7 @@ class StandardBeurerSanitasHandler : StandardWeightProfileHandler() {
     }
 
     private fun writeInitials(user: ScaleUser) {
-        val raw = user.userName?.uppercase()?.replace(Regex("[^A-Z0-9]"), "").orEmpty()
+        val raw = user.userName.uppercase().replace(Regex("[^A-Z0-9]"), "")
         val initials = raw.take(3)
         if (initials.isNotEmpty()) {
             profile?.chrInitials?.let { chr ->

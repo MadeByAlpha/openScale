@@ -24,8 +24,6 @@ import com.health.openscale.core.bluetooth.libs.MiScaleLib
 import com.health.openscale.core.data.GenderType
 import com.health.openscale.core.service.ScannedDeviceInfo
 import com.health.openscale.core.utils.ConverterUtils
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -81,7 +79,6 @@ class MiScaleHandler : ScaleDeviceHandler() {
     private var warnedHistoryStatusBits = false
 
     // Timers
-    private val scope = CoroutineScope(Dispatchers.Main)
     private var historyFallbackJob: Job? = null
 
     // ----- Capability & detection -----
@@ -270,16 +267,19 @@ class MiScaleHandler : ScaleDeviceHandler() {
             return
         }
 
-        // Response to “only last”: 0x01 <count> FF FF <uniqHi> <uniqLo>
+        // Response to "only last" or "all": 0x01 <count> 0x00 <marker/echo bytes...>
         if (d.size >= 6 && d[0] == 0x01.toByte()) {
             val count = d[1].toInt() and 0xFF
-            // Accept FF FF and 00 00
             val marker = (d[2].toInt() and 0xFF) shl 8 or (d[3].toInt() and 0xFF)
             if (marker == 0xFFFF || marker == 0x0000) {
                 pendingHistoryCount = count
+                histBufReset() // Discard any stale bytes (e.g. magic-echo) before history data arrives.
                 logI("History count announced (marker=${marker.toString(16)}): $pendingHistoryCount")
-                return
+            } else {
+                // Control response (e.g. magic-echo) with unrecognized marker — discard, not history data.
+                logD("Ignoring control response (marker=${marker.toString(16)}, len=${d.size}): ${d.toHexPreview(16)}")
             }
+            return
         }
 
         // Live frames (13B) or combined (26B)
@@ -348,13 +348,15 @@ class MiScaleHandler : ScaleDeviceHandler() {
         if (hasImp) {
             val imp = (((d[10].toInt() and 0xFF) shl 8) or (d[9].toInt() and 0xFF)).toFloat()
             if (imp > 0) {
+                // Store the raw impedance so body composition can be recomputed later.
+                m.impedance = imp.toDouble()
                 val lib = MiScaleLib(user.gender.isMale(), user.age, user.bodyHeight)
-                m.water       = lib.getWater(m.weight, imp.toFloat())
-                m.visceralFat = lib.getVisceralFat(m.weight, imp.toFloat())
-                m.fat         = lib.getBodyFat(m.weight, imp.toFloat())
-                m.muscle      = lib.getMuscle(m.weight, imp.toFloat())
-                m.lbm         = lib.getLBM(m.weight, imp.toFloat())
-                m.bone        = lib.getBoneMass(m.weight, imp.toFloat())
+                m.water       = lib.getWater(m.weight, imp)
+                m.visceralFat = lib.getVisceralFat(m.weight, imp)
+                m.fat         = lib.getBodyFat(m.weight, imp)
+                m.muscle      = lib.getMuscle(m.weight, imp)
+                m.lbm         = lib.getLBM(m.weight, imp)
+                m.bone        = lib.getBoneMass(m.weight, imp)
             }
         }
 

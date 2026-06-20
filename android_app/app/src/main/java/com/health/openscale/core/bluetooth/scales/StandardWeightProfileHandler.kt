@@ -22,8 +22,10 @@ import com.health.openscale.core.bluetooth.BluetoothEvent.UserInteractionType
 import com.health.openscale.core.bluetooth.data.ScaleMeasurement
 import com.health.openscale.core.bluetooth.data.ScaleUser
 import com.health.openscale.core.service.ScannedDeviceInfo
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.min
 import kotlin.random.Random
@@ -73,15 +75,11 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
     // ---- UDS Control Point opcodes -------------------------------------------
     private val UDS_CP_REGISTER_NEW_USER       = 0x01
     private val UDS_CP_CONSENT                 = 0x02
-    private val UDS_CP_DELETE_USER_DATA        = 0x03
     private val UDS_CP_LIST_ALL_USERS          = 0x04
-    private val UDS_CP_DELETE_USERS            = 0x05
     private val UDS_CP_RESPONSE                = 0x20
 
     // UDS response values
     private val UDS_CP_RESP_VALUE_SUCCESS          = 0x01
-    private val UDS_CP_RESP_OP_CODE_NOT_SUPPORTED  = 0x02
-    private val UDS_CP_RESP_INVALID_PARAMETER      = 0x03
     private val UDS_CP_RESP_OPERATION_FAILED       = 0x04
     private val UDS_CP_RESP_USER_NOT_AUTHORIZED    = 0x05
 
@@ -91,15 +89,16 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
     private var pendingAppUserId: Int? = null
     private var pendingConsentForNewUser: Int? = null
     private var awaitingReferenceAfterRegister = false
+    private var newUserRegistrationPending = false
 
     /**
      * Identify devices that expose any of the standard scale services.
      */
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val adv = try { device.serviceUuids } catch (_: Throwable) { emptySet<UUID>() }
-        val looksStandard = adv?.any {
+        val looksStandard = adv.any {
             it == SVC_WEIGHT_SCALE || it == SVC_BODY_COMPOSITION || it == SVC_USER_DATA
-        } == true
+        }
         if (!looksStandard) return null
 
         val capabilities = buildSet {
@@ -179,7 +178,6 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
 
         val w = m.weight.takeIf { it > 0f } ?: 1f
 
-        m.muscle = (m.muscle / w) * 100f
         m.water = (m.water / w) * 100f
 
         logD("transformed values before publish: weight=${m.weight}kg, lbm=${m.lbm}kg, bone=${m.bone}kg, " +
@@ -273,6 +271,20 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
         logD("UserInteraction requested: CHOOSE_USER with labels=${labels.joinToString()} ids=${ids.joinToString()}")
     }
 
+    /** Show a CHOOSE_USER dialog built from ScaleUser objects (+ "Create new"). */
+    protected fun presentChooseFromUsers(users: List<ScaleUser>) {
+        logD("Presenting user choice dialog with ${users.size} scale users and 'Create new'")
+        val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val labels = users.map { u ->
+            "P%02d - %s %s".format(u.id, u.userName, dateFmt.format(u.birthday))
+        }.toMutableList<CharSequence>()
+        val ids = users.map { it.id }.toMutableList()
+        labels += resolveString(R.string.bluetooth_scale_info_create_user_instruction)
+        ids += -1
+        requestUserInteraction(UserInteractionType.CHOOSE_USER, Pair(labels.toTypedArray(), ids.toIntArray()))
+        logD("UserInteraction requested: CHOOSE_USER with labels=${labels.joinToString()} ids=${ids.joinToString()}")
+    }
+
     // ---- Decoding & merge logic ----------------------------------------------
 
     private fun handleWeightMeasurement(value: ByteArray) {
@@ -341,6 +353,7 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
             val minute = u8(value, offset); offset += 1
             val second = u8(value, offset); offset += 1
             cal.set(year, (month - 1).coerceAtLeast(0), day, hour, minute, second)
+            cal.set(Calendar.MILLISECOND, 0)
             m.dateTime = cal.time
         }
 
@@ -353,7 +366,7 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
 
         if (bmiHeight) {
             val bmi = u16le(value, offset) * 0.1f; offset += 2
-            val heightMeters = u16le(value, offset) * 0.001f; offset += 2
+            val heightMeters = u16le(value, offset) * 0.001f
             logD("BMI=$bmi height(m)=$heightMeters")
         }
 
@@ -395,6 +408,7 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
             val minute = u8(value, offset); offset += 1
             val second = u8(value, offset); offset += 1
             cal.set(year, (month - 1).coerceAtLeast(0), day, hour, minute, second)
+            cal.set(Calendar.MILLISECOND, 0)
             m.dateTime = cal.time
         }
 
@@ -440,6 +454,8 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
         if (impedancePresent) {
             val z = u16le(value, offset) * 0.1f; offset += 2
             logD("Impedance=$z Ω")
+            // Store the raw impedance so body composition can be recomputed later.
+            if (z > 0f) m.impedance = z.toDouble()
         }
 
         if (weightPresent) {
@@ -450,7 +466,7 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
         }
 
         if (heightPresent) {
-            val heightVal = u16le(value, offset); offset += 2
+            val heightVal = u16le(value, offset)
             logD("Height(raw)=$heightVal")
         }
 
@@ -512,9 +528,6 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
                         logD("Saved pending consent $it for new scaleIndex=$newScaleIndex")
                     }
 
-                    logD("Writing user data to scale for new user...")
-                    writeUserDataToScale()
-
                     val consent = loadConsentForScaleIndex(newScaleIndex).takeIf { it != -1 }
                         ?: pendingConsentForNewUser ?: randomConsent().also {
                             saveConsentForScaleIndex(newScaleIndex, it)
@@ -523,6 +536,7 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
                     sendConsent(newScaleIndex, consent)
 
                     awaitingReferenceAfterRegister = true
+                    newUserRegistrationPending = true
                     registeringNewUser = false
                     pendingAppUserId = null
                     pendingConsentForNewUser = null
@@ -534,6 +548,7 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
                         userWarn(R.string.bt_warn_register_failed_with_code, result)
                     }
                     registeringNewUser = false
+                    newUserRegistrationPending = false
                 }
             }
 
@@ -542,14 +557,18 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
                     UDS_CP_RESP_VALUE_SUCCESS -> {
                         logD("UDS CONSENT success for appUserId=${pendingAppUserId ?: currentAppUser().id}")
                         pendingAppUserId = null
-                        if (awaitingReferenceAfterRegister) {
-                            userInfo(R.string.bluetooth_scale_info_step_on_for_reference)
-                            awaitingReferenceAfterRegister = false
-                            logD("Prompted user to step on scale for reference measurement")
+                        if (newUserRegistrationPending) {
+                            if (awaitingReferenceAfterRegister) {
+                                userInfo(R.string.bluetooth_scale_info_step_on_for_reference)
+                                awaitingReferenceAfterRegister = false
+                                logD("Prompted user to step on scale for reference measurement")
+                            }
+                            writeUserDataToScale()
+                            logD("writeUserDataToScale() called after consent for new user")
+                            newUserRegistrationPending = false
                         }
-                        writeUserDataToScale()
                         onRequestMeasurement()
-                        logD("onRequestMeasurement() triggered after successful consent")
+                        logD("onRequestMeasurement() triggered after consent")
                     }
                     UDS_CP_RESP_USER_NOT_AUTHORIZED -> {
                         userError(R.string.bt_error_ucp_not_authorized)
@@ -557,6 +576,11 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
                         val idx = findKnownScaleIndexForAppUser(appId)
                         idx?.let { userInfo(R.string.bt_info_consent_needed, it) }
                         logW("UDS CONSENT failed: User not authorized for appUserId=$appId")
+                        idx?.let {
+                            saveConsentForScaleIndex(it, -1)
+                            logD("Cleared bad consent for scaleIndex=$it, re-prompting user")
+                            requestScaleUserConsent(appId, it)
+                        }
                     }
                     else -> {
                         logW("UDS CONSENT unhandled result=$result for appUserId=${pendingAppUserId ?: currentAppUser().id}")
@@ -631,13 +655,15 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
         )
         writeTo(SVC_USER_DATA, CHR_USER_HEIGHT, heightPayload)
 
-        // Change Increment: write 1 to bump DB revision (optional)
+        // Change Increment: write 1 to bump DB revision (optional).
+        // Wire format is a 4-byte little-endian uint32; the value (1) fits in the
+        // low byte, so the three upper bytes are always 0.
         val changeInc = 1
         val changePayload = byteArrayOf(
             (changeInc and 0xFF).toByte(),
-            ((changeInc shr 8) and 0xFF).toByte(),
-            ((changeInc shr 16) and 0xFF).toByte(),
-            ((changeInc shr 24) and 0xFF).toByte()
+            0x00,
+            0x00,
+            0x00
         )
         writeTo(SVC_USER_DATA, CHR_DATABASE_CHANGE_INCREMENT, changePayload)
     }
@@ -733,8 +759,6 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
                 saveConsentForScaleIndex(scaleIndex, consent)
                 sendConsent(scaleIndex, consent)
             }
-
-            else -> logW("Unhandled UserInteractionType=$interactionType for appUserId=$appUserId")
         }
     }
 

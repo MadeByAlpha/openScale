@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TableRows
@@ -35,6 +36,7 @@ object Routes {
     const val GRAPH = "graph"
     const val TABLE = "table"
     const val STATISTICS = "statistics"
+    const val INSIGHTS = "insights"
     const val SETTINGS = "settings"
 
     const val MEASUREMENT_DETAIL = "measurementDetail" // Not a main navigation item, but a route
@@ -50,6 +52,8 @@ object Routes {
     const val CHART_SETTINGS = "settings/chart"
     const val DATA_MANAGEMENT_SETTINGS = "settings/dataManagement"
     const val ABOUT_SETTINGS = "settings/about"
+    const val TABLE_DRILLDOWN = "table_drilldown?start={start}&end={end}"
+    const val OVERVIEW_DRILLDOWN = "overview_drilldown?start={start}&end={end}"
 
     // Special constant for no title
     const val NO_TITLE_RESOURCE_ID = 0
@@ -60,6 +64,19 @@ object Routes {
 
     fun measurementDetail(measurementId: Int?, userId: Int?): String =
         "$MEASUREMENT_DETAIL?measurementId=${measurementId ?: -1}&userId=$userId"
+
+    fun overviewDrillDown(startMillis: Long, endMillis: Long) =
+        "overview_drilldown?start=$startMillis&end=$endMillis"
+
+    /**
+     * Returns the navigation route for the table drill-down screen,
+     * showing raw measurements for a specific aggregated time period.
+     *
+     * @param startMillis Start of the period (inclusive), in epoch milliseconds.
+     * @param endMillis End of the period (exclusive), in epoch milliseconds.
+     */
+    fun tableDrillDown(startMillis: Long, endMillis: Long) =
+        "table_drilldown?start=$startMillis&end=$endMillis"
 
     /**
      * Gets the string resource ID for the title of a given route.
@@ -75,6 +92,7 @@ object Routes {
         route.startsWith(GRAPH) -> R.string.route_title_graph
         route.startsWith(TABLE) -> R.string.route_title_table
         route.startsWith(STATISTICS) -> R.string.route_title_statistics
+        route.startsWith(INSIGHTS) -> R.string.route_title_insights
         route.startsWith(SETTINGS) -> R.string.route_title_settings
         else -> NO_TITLE_RESOURCE_ID // No specific title for other routes via this function
     }
@@ -85,6 +103,7 @@ object Routes {
             GRAPH -> Icons.AutoMirrored.Filled.ShowChart
             TABLE -> Icons.Filled.TableRows
             STATISTICS -> Icons.Filled.Analytics
+            INSIGHTS -> Icons.Filled.Lightbulb
             SETTINGS -> Icons.Filled.Settings
             else -> Icons.Filled.QuestionMark // Default icon for routes not explicitly handled
         }

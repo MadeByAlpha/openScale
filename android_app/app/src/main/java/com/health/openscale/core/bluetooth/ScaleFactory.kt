@@ -18,39 +18,53 @@
 package com.health.openscale.core.bluetooth
 
 import android.content.Context
+import com.health.openscale.core.bluetooth.scales.BeurerBF450Handler
 import com.health.openscale.core.bluetooth.scales.ScaleDeviceHandler
 import com.health.openscale.core.bluetooth.scales.AAAxHandler
 import com.health.openscale.core.bluetooth.scales.ActiveEraBF06Handler
+import com.health.openscale.core.bluetooth.scales.CultSmartScaleProHandler
 import com.health.openscale.core.bluetooth.scales.BeurerSanitasHandler
 import com.health.openscale.core.bluetooth.scales.BroadcastScaleAdapter
 import com.health.openscale.core.bluetooth.scales.CustomOpenScaleHandler
 import com.health.openscale.core.bluetooth.scales.DebugGattHandler
 import com.health.openscale.core.bluetooth.scales.DeviceSupport
 import com.health.openscale.core.bluetooth.scales.DigooDGSO38HHandler
-import com.health.openscale.core.bluetooth.scales.ESCS20mHandler
+import com.health.openscale.core.bluetooth.scales.ESCS20MHandler
 import com.health.openscale.core.bluetooth.scales.ExcelvanCF36xHandler
 import com.health.openscale.core.bluetooth.scales.ExingtechY1Handler
+import com.health.openscale.core.bluetooth.scales.EufyC20Handler
+import com.health.openscale.core.bluetooth.scales.EbelterBodyFatB2Handler
+import com.health.openscale.core.bluetooth.scales.EtekcityESF551Handler
 import com.health.openscale.core.bluetooth.scales.GattScaleAdapter
 import com.health.openscale.core.bluetooth.scales.HesleyHandler
 import com.health.openscale.core.bluetooth.scales.HoffenBbs8107Handler
-import com.health.openscale.core.bluetooth.scales.HuaweiAH100Handler
+import com.health.openscale.core.bluetooth.scales.HuaweiAhCh100Handler
+import com.health.openscale.core.bluetooth.scales.HuaweiCH100SHandler
 import com.health.openscale.core.bluetooth.scales.IHealthHS3Handler
 import com.health.openscale.core.bluetooth.scales.InlifeHandler
 import com.health.openscale.core.bluetooth.scales.LinkMode
 import com.health.openscale.core.bluetooth.scales.MGBHandler
 import com.health.openscale.core.bluetooth.scales.MedisanaBs44xHandler
 import com.health.openscale.core.bluetooth.scales.MiScaleHandler
+import com.health.openscale.core.bluetooth.scales.MiScaleS400Handler
+import com.health.openscale.core.bluetooth.scales.BodyConnectHandler
 import com.health.openscale.core.bluetooth.scales.OkOkHandler
 import com.health.openscale.core.bluetooth.scales.OneByoneHandler
 import com.health.openscale.core.bluetooth.scales.OneByoneNewHandler
 import com.health.openscale.core.bluetooth.scales.QNHandler
+import com.health.openscale.core.bluetooth.scales.QNHandlerBroadcast
+import com.health.openscale.core.bluetooth.scales.RealmeSmartScaleHandler
 import com.health.openscale.core.bluetooth.scales.RenphoES26BBHandler
 import com.health.openscale.core.bluetooth.scales.RenphoHandler
+import com.health.openscale.core.bluetooth.scales.RunstarR5Handler
+import com.health.openscale.core.bluetooth.scales.RyFitHandler
 import com.health.openscale.core.bluetooth.scales.SanitasSbf72Handler
 import com.health.openscale.core.bluetooth.scales.SenssunHandler
 import com.health.openscale.core.bluetooth.scales.SinocareHandler
 import com.health.openscale.core.bluetooth.scales.SoehnleHandler
 import com.health.openscale.core.bluetooth.scales.SppScaleAdapter
+import com.health.openscale.core.bluetooth.scales.TaylorBIAHandler
+import com.health.openscale.core.bluetooth.scales.DrTrustSSW532Handler
 import com.health.openscale.core.bluetooth.scales.StandardBeurerSanitasHandler
 import com.health.openscale.core.bluetooth.scales.TrisaBodyAnalyzeHandler
 import com.health.openscale.core.bluetooth.scales.TuningProfile
@@ -67,6 +81,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Factory class responsible for creating appropriate [ScaleCommunicator] instances
@@ -74,7 +89,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class ScaleFactory @Inject constructor(
-    @ApplicationContext private val applicationContext: Context,
+    @param:ApplicationContext private val applicationContext: Context,
     private val settingsFacade: SettingsFacade,
     private val measurementFacade: MeasurementFacade,
     private val userFacade: UserFacade,
@@ -82,7 +97,15 @@ class ScaleFactory @Inject constructor(
     private val TAG = "ScaleHandlerFactory"
 
     // List of modern Kotlin-based device handlers.
+    // Order matters: createCommunicator() returns the FIRST handler whose supportFor() is non-null.
+    // TaylorBIAHandler must stay ahead of MGBHandler — both live on service 0xFFB0, and MGBHandler
+    // also matches that service, so a later position would let MGB wrongly claim the Taylor scale.
     private val modernKotlinHandlers: List<ScaleDeviceHandler> = listOf(
+        BeurerBF450Handler(),
+        TaylorBIAHandler(),
+        RyFitHandler(),
+        CultSmartScaleProHandler(),
+        RealmeSmartScaleHandler(),
         YunmaiHandler(isMini = false),
         YunmaiHandler(isMini = true),
         TrisaBodyAnalyzeHandler(),
@@ -92,21 +115,28 @@ class ScaleFactory @Inject constructor(
         SinocareHandler(),
         SenssunHandler(),
         RenphoHandler(),
+        QNHandlerBroadcast(),
         QNHandler(),
         OneByoneHandler(),
         OneByoneNewHandler(),
         OkOkHandler(),
+        MiScaleS400Handler(),
         MiScaleHandler(),
+        RunstarR5Handler(),
         MGBHandler(),
         MedisanaBs44xHandler(),
         InlifeHandler(),
         IHealthHS3Handler(),
-        HuaweiAH100Handler(),
+        HuaweiAhCh100Handler(),
+        HuaweiCH100SHandler(),
         HoffenBbs8107Handler(),
         HesleyHandler(),
         ExingtechY1Handler(),
+        EbelterBodyFatB2Handler(),
         ExcelvanCF36xHandler(),
-        ESCS20mHandler(),
+        EtekcityESF551Handler(),
+        EufyC20Handler(),
+        ESCS20MHandler(),
         RenphoES26BBHandler(),
         DigooDGSO38HHandler(),
         DebugGattHandler(),
@@ -114,7 +144,9 @@ class ScaleFactory @Inject constructor(
         BeurerSanitasHandler(),
         AAAxHandler(),
         ActiveEraBF06Handler(),
-        )
+        DrTrustSSW532Handler(),
+        BodyConnectHandler(),
+    )
 
     /**
      * Creates a [ScaleCommunicator] based on a modern [ScaleDeviceHandler].
@@ -133,7 +165,7 @@ class ScaleFactory @Inject constructor(
         val effectiveTuning: TuningProfile = run {
             val saved: String? = runCatching {
                 runBlocking(Dispatchers.IO) {
-                    withTimeout(250) {
+                    withTimeout(250.milliseconds) {
                         settingsFacade.savedBluetoothTuneProfile.firstOrNull()
                     }
                 }
@@ -183,7 +215,7 @@ class ScaleFactory @Inject constructor(
      * @return A [ScaleCommunicator] instance if a suitable handler or adapter is found, otherwise null.
      */
     fun createCommunicator(deviceInfo: ScannedDeviceInfo): ScaleCommunicator? {
-        val primaryIdentifier = deviceInfo.name ?: "UnknownDevice"
+        val primaryIdentifier = deviceInfo.name
         LogManager.d(TAG, "createCommunicator: Searching for communicator for '${primaryIdentifier}' (${deviceInfo.address}). Handler hint: '${deviceInfo.determinedHandlerDisplayName}'")
 
         // 1. Check if a modern Kotlin handler explicitly supports the device.

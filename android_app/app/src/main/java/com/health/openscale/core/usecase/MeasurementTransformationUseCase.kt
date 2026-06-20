@@ -37,6 +37,7 @@ import javax.inject.Singleton
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
+import kotlin.math.log10
 import kotlin.math.pow
 
 /**
@@ -214,6 +215,40 @@ class MeasurementTransformationUseCase @Inject constructor(
         byKey[MeasurementTypeKey.BODY_FAT]?.let { type ->
             if (bfOpt != BodyFatFormulaOption.OFF) {
                 val bf = when (bfOpt) {
+                    BodyFatFormulaOption.US_NAVY -> {
+                        val waistIn = values.find { it.typeId == byKey[MeasurementTypeKey.WAIST]?.id }?.let {
+                            it.floatValue?.let { value ->
+                                ConverterUtils.convertFloatValueUnit(value, byKey[MeasurementTypeKey.WAIST]!!.unit, UnitType.INCH)
+                            }
+                        }
+                        val neckIn = values.find { it.typeId == byKey[MeasurementTypeKey.NECK]?.id }?.let {
+                            it.floatValue?.let { value ->
+                                ConverterUtils.convertFloatValueUnit(value, byKey[MeasurementTypeKey.NECK]!!.unit, UnitType.INCH)
+                            }
+                        }
+                        val heightIn = (heightCm / 2.54).toFloat()
+
+                        if (waistIn != null && waistIn > 0f && neckIn != null && neckIn > 0f && heightIn > 0f) {
+                            if (isMale) {
+                                val diff = waistIn - neckIn
+                                if (diff > 0f) {
+                                    86.010f * log10(diff) - 70.041f * log10(heightIn) + 36.76f
+                                } else null
+                            } else {
+                                val hipsIn = values.find { it.typeId == byKey[MeasurementTypeKey.HIPS]?.id }?.let {
+                                    it.floatValue?.let { value ->
+                                        ConverterUtils.convertFloatValueUnit(value, byKey[MeasurementTypeKey.HIPS]!!.unit, UnitType.INCH)
+                                    }
+                                }
+                                if (hipsIn != null && hipsIn > 0f) {
+                                    val diff = waistIn + hipsIn - neckIn
+                                    if (diff > 0f) {
+                                        163.205f * log10(diff) - 97.684f * log10(heightIn) - 78.387f
+                                    } else null
+                                } else null
+                            }
+                        } else null
+                    }
                     BodyFatFormulaOption.DEURENBERG_1991 ->
                         (1.2 * bmi) + (0.23 * ageYears) - if (isMale) 16.2 else 5.4
                     BodyFatFormulaOption.DEURENBERG_1992 ->
@@ -229,10 +264,10 @@ class MeasurementTransformationUseCase @Inject constructor(
                         if (isMale) 51.9 - (740.0 / bmi) + (0.029 * ageYears)
                         else         64.8 - (752.0 / bmi) + (0.016 * ageYears)
                     BodyFatFormulaOption.OFF -> null
-                }?.coerceAtLeast(0.0)
+                }?.toDouble()
 
                 val newVal = bf?.toFloat()
-                    ?.coerceIn(0f, 75f)
+                    ?.coerceIn(1.0f, 70.0f)
                     ?.let { CalculationUtils.roundTo(it) }
 
                 upsertFloat(type, newVal)

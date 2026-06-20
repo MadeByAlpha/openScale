@@ -19,7 +19,6 @@ package com.health.openscale.ui.screen.settings
 
 import android.Manifest
 import android.app.Activity
-import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -33,12 +32,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -46,34 +42,29 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -86,15 +77,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.navigation.NavController
 import com.health.openscale.R
 import com.health.openscale.core.data.MeasurementTypeIcon
 import com.health.openscale.core.data.SupportedLanguage
@@ -109,11 +99,11 @@ import java.util.Calendar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneralSettingsScreen(
-    navController: NavController,
     sharedViewModel: SharedViewModel,
     settingsViewModel: SettingsViewModel
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val activity = LocalView.current.context as ComponentActivity
     val scope = rememberCoroutineScope()
 
@@ -124,6 +114,8 @@ fun GeneralSettingsScreen(
     val currentLanguageCode by sharedViewModel.appLanguageCode.collectAsState(initial = null)
     var expandedLanguageMenu by remember { mutableStateOf(false) }
     val hapticsEnabled by sharedViewModel.hapticOnMeasurement.collectAsState(initial = false)
+    val useDynamicColor by sharedViewModel.useDynamicColor.collectAsState(initial = false)
+    val useHighContrast by sharedViewModel.useHighContrast.collectAsState(initial = false)
 
     val selectedLanguage: SupportedLanguage = remember(currentLanguageCode, supportedLanguagesEnumEntries) {
         val systemDefault = SupportedLanguage.getDefault().code
@@ -161,7 +153,7 @@ fun GeneralSettingsScreen(
         val labels = dayOrder.filter { selected.contains(it.first.name) }.map { it.second }
         return when {
             labels.isEmpty() -> "—"
-            labels.size == 7 -> context.getString(R.string.all)
+            labels.size == 7 -> resources.getString(R.string.all)
             else -> labels.joinToString(", ")
         }
     }
@@ -172,14 +164,14 @@ fun GeneralSettingsScreen(
         scope.launch {
             if (granted) {
                 if (reminderText.isBlank()) {
-                    sharedViewModel.setReminderText(context.getString(R.string.reminder_default_text))
+                    sharedViewModel.setReminderText(resources.getString(R.string.reminder_default_text))
                 }
                 sharedViewModel.setReminderEnabled(true)
-                sharedViewModel.showSnackbar(context.getString(R.string.reminder_enabled_snackbar))
+                sharedViewModel.showSnackbar(resources.getString(R.string.reminder_enabled_snackbar))
                 settingsViewModel.requestReminderReschedule()
             } else {
                 sharedViewModel.setReminderEnabled(false)
-                sharedViewModel.showSnackbar(context.getString(R.string.permission_denied))
+                sharedViewModel.showSnackbar(resources.getString(R.string.permission_denied))
             }
         }
     }
@@ -195,9 +187,9 @@ fun GeneralSettingsScreen(
                         val ok = LogManager.exportLogToUri(context, uri)
                         scope.launch {
                             if (ok) {
-                                sharedViewModel.showSnackbar(context.getString(R.string.log_export_success))
+                                sharedViewModel.showSnackbar(resources.getString(R.string.log_export_success))
                             } else {
-                                sharedViewModel.showSnackbar(context.getString(R.string.log_export_error))
+                                sharedViewModel.showSnackbar(resources.getString(R.string.log_export_error))
                             }
                         }
                     }
@@ -205,7 +197,7 @@ fun GeneralSettingsScreen(
             }
         } else {
             scope.launch {
-                sharedViewModel.showSnackbar(context.getString(R.string.log_export_cancelled))
+                sharedViewModel.showSnackbar(resources.getString(R.string.log_export_cancelled))
             }
         }
     }
@@ -257,7 +249,7 @@ fun GeneralSettingsScreen(
                             sharedViewModel.setFileLoggingEnabled(true)
                             LogManager.updateLoggingPreference(true)
                             sharedViewModel.showSnackbar(
-                                context.getString(R.string.file_logging_enabled_snackbar)
+                                resources.getString(R.string.file_logging_enabled_snackbar)
                             )
                         }
                         showLoggingActivationDialog = false
@@ -280,7 +272,7 @@ fun GeneralSettingsScreen(
     }
 
     LaunchedEffect(Unit) {
-        sharedViewModel.setTopBarTitle(context.getString(R.string.settings_item_general))
+        sharedViewModel.setTopBarTitle(resources.getString(R.string.settings_item_general))
     }
 
     Column(
@@ -352,6 +344,39 @@ fun GeneralSettingsScreen(
             }
         }
 
+        // --- Appearance ---
+        SettingsSectionTitle(text = stringResource(R.string.settings_appearance_title))
+
+        SettingsGroup(
+            leadingIcon = {
+                Icon(
+                    imageVector        = Icons.Filled.Palette,
+                    contentDescription = null,
+                    tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            title           = stringResource(R.string.settings_dynamic_color_label),
+            checked         = useDynamicColor,
+            onCheckedChange = { enabled ->
+                scope.launch { sharedViewModel.setUseDynamicColor(enabled) }
+            }
+        )
+
+        SettingsGroup(
+            leadingIcon = {
+                Icon(
+                    imageVector        = Icons.Filled.Contrast,
+                    contentDescription = null,
+                    tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            title           = stringResource(R.string.settings_high_contrast_label),
+            checked         = useHighContrast,
+            onCheckedChange = { enabled ->
+                scope.launch { sharedViewModel.setHighContrast(enabled) }
+            }
+        )
+
         // ---- Haptic section ----
         SettingsSectionTitle(text = stringResource(R.string.settings_feedback_title))
 
@@ -370,13 +395,11 @@ fun GeneralSettingsScreen(
                     sharedViewModel.setHapticOnMeasurement(enabled)
                     sharedViewModel.showSnackbar(
                         if (enabled)
-                            context.getString(R.string.settings_haptics_enabled_snackbar)
+                            resources.getString(R.string.settings_haptics_enabled_snackbar)
                         else
-                            context.getString(R.string.settings_haptics_disabled_snackbar)
+                            resources.getString(R.string.settings_haptics_disabled_snackbar)
                     )
                 }
-            },
-            content = {
             }
         )
 
@@ -406,17 +429,17 @@ fun GeneralSettingsScreen(
                     } else {
                         scope.launch {
                             if (reminderText.isBlank()) {
-                                sharedViewModel.setReminderText(context.getString(R.string.reminder_default_text))
+                                sharedViewModel.setReminderText(resources.getString(R.string.reminder_default_text))
                             }
                             sharedViewModel.setReminderEnabled(true)
-                            sharedViewModel.showSnackbar(context.getString(R.string.reminder_enabled_snackbar))
+                            sharedViewModel.showSnackbar(resources.getString(R.string.reminder_enabled_snackbar))
                             settingsViewModel.requestReminderReschedule()
                         }
                     }
                 } else {
                     scope.launch {
                         sharedViewModel.setReminderEnabled(false)
-                        sharedViewModel.showSnackbar(context.getString(R.string.reminder_disabled_snackbar))
+                        sharedViewModel.showSnackbar(resources.getString(R.string.reminder_disabled_snackbar))
                         settingsViewModel.requestReminderReschedule()
                     }
                 }
@@ -551,7 +574,7 @@ fun GeneralSettingsScreen(
                         sharedViewModel.setFileLoggingEnabled(false)
                         LogManager.updateLoggingPreference(false)
                         sharedViewModel.showSnackbar(
-                            context.getString(R.string.file_logging_disabled_snackbar)
+                            resources.getString(R.string.file_logging_disabled_snackbar)
                         )
                     }
                 }
@@ -574,7 +597,7 @@ fun GeneralSettingsScreen(
                                 } catch (e: ActivityNotFoundException) {
                                     scope.launch {
                                         sharedViewModel.showSnackbar(
-                                            context.getString(R.string.log_export_no_app_error)
+                                            resources.getString(R.string.log_export_no_app_error)
                                         )
                                     }
                                     LogManager.e("GeneralSettingsScreen",
@@ -583,7 +606,7 @@ fun GeneralSettingsScreen(
                             } else {
                                 scope.launch {
                                     sharedViewModel.showSnackbar(
-                                        context.getString(R.string.log_export_no_file_to_export)
+                                        resources.getString(R.string.log_export_no_file_to_export)
                                     )
                                 }
                             }
@@ -622,8 +645,9 @@ fun SettingsGroup(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     summary: String? = null,
-    content: @Composable ColumnScope.() -> Unit,
-    persistentContent: (@Composable ColumnScope.() -> Unit)? = null
+    content: (@Composable ColumnScope.() -> Unit)? = null,
+    persistentContent: (@Composable ColumnScope.() -> Unit)? = null,
+    showCard: Boolean = content != null || persistentContent != null,
 ) {
     val container = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     val borderColor = if (checked)
@@ -631,18 +655,21 @@ fun SettingsGroup(
     else
         MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
 
-    Column(
-        modifier = Modifier
+    val cardModifier = if (showCard) {
+        Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
-            .then(
-                Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .border(1.dp, borderColor, MaterialTheme.shapes.medium)
-                    .background(container)
-            )
+            .clip(MaterialTheme.shapes.medium)
+            .border(1.dp, borderColor, MaterialTheme.shapes.medium)
+            .background(container)
             .padding(horizontal = 16.dp, vertical = 12.dp)
-    ) {
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 4.dp)
+    }
+
+    Column(modifier = cardModifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -650,14 +677,14 @@ fun SettingsGroup(
                 .semantics { contentDescription = title }
                 .clickable { onCheckedChange(!checked) },
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 leadingIcon?.invoke()
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = if (leadingIcon != null) 12.dp else 0.dp)
+                    text     = title,
+                    style    = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(start = if (leadingIcon != null) 12.dp else 0.dp),
                 )
             }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
@@ -665,19 +692,17 @@ fun SettingsGroup(
 
         if (!summary.isNullOrBlank()) {
             Text(
-                text = summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
+                text     = summary,
+                style    = MaterialTheme.typography.bodySmall,
+                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
 
         if (checked) {
-            content()
+            content?.invoke(this)
         }
 
-        if (persistentContent != null) {
-            persistentContent()
-        }
+        persistentContent?.invoke(this)
     }
 }

@@ -17,20 +17,6 @@ Open-source weight and body metrics tracker, with support for Bluetooth scales
 > For the latest development state, install the latest [openScale dev](https://github.com/oliexdev/openScale/releases/tag/dev-build) build from the [GitHub release page](https://github.com/oliexdev/openScale/releases).
 > Please be aware that the development version, may contain bugs, and will not receive automatic updates.
 
-> [!IMPORTANT]
-> **Help to test the openScale 3.0 Beta - Your Feedback is Key!**
->
-> As openScale has been completely rewritten in Kotlin from scratch, comprehensive testing is essential:
->
-> * Thoroughly test the new Kotlin app's stability (navigation, data entry, history) and report any broken features from the previous version.
-> * Test Your Bluetooth Scale! Most drivers need porting to Kotlin; detailed feedback on your scale's connection & behavior is essential for 3.0 device support.
-> * Understand this is an early rewrite; initial Bluetooth support is limited, and some features are still pending.
-> * Your testing feedback is vital, and code contributions (especially for scale drivers on the openScale-3.0 branch) are highly welcome to build the next generation together!
->
-> This is an early beta; expect some rough edges. Your active testing and detailed reports will make openScale 3.0 a success!
->
-> [**Learn More About Beta Testing & Reporting Here**](https://github.com/oliexdev/openScale/issues/1139)
-
 # Summary :clipboard:
 
 Monitor and track your weight, BMI, body fat, body water, muscle and other body metrics in an open source app that:

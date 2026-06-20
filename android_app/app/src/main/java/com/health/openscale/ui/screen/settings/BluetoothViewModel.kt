@@ -17,27 +17,8 @@
  */
 package com.health.openscale.ui.screen.settings
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.health.openscale.R
@@ -51,7 +32,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /**
@@ -88,6 +72,7 @@ class BluetoothViewModel @Inject constructor(
     val isSmartAssignmentEnabled = settingsFacade.isSmartAssignmentEnabled
     val smartAssignmentTolerancePercent = settingsFacade.smartAssignmentTolerancePercent
     val smartAssignmentIgnoreOutsideTolerance = settingsFacade.smartAssignmentIgnoreOutsideTolerance
+    val autoConnectOnStartup = settingsFacade.autoConnectOnStartup
 
     fun setSmartAssignmentEnabled(enabled: Boolean) = viewModelScope.launch {
         settingsFacade.setSmartAssignmentEnabled(enabled)
@@ -101,6 +86,9 @@ class BluetoothViewModel @Inject constructor(
         settingsFacade.setSmartAssignmentIgnoreOutsideTolerance(ignore)
     }
 
+    fun setAutoConnectOnStartup(enabled: Boolean) = viewModelScope.launch {
+        settingsFacade.setAutoConnectOnStartup(enabled)
+    }
     // --- Snackbar events for UI ---
     private val _snackbarEvents = MutableSharedFlow<SnackbarEvent>(replay = 0, extraBufferCapacity = 1)
     val snackbarEvents: SharedFlow<SnackbarEvent> = _snackbarEvents.asSharedFlow()
@@ -111,9 +99,28 @@ class BluetoothViewModel @Inject constructor(
                 _snackbarEvents.emit(evt)
             }
         }
+
+        // Auto-connect on startup
+        viewModelScope.launch {
+            val enabled = settingsFacade.autoConnectOnStartup.first()
+            if (!enabled) return@launch
+
+            val device = withTimeoutOrNull(1_500) {
+                bt.savedDevice
+                    .filter { it != null }
+                    .first()
+            }
+
+            if (device != null) {
+                bt.attemptAutoConnectToSavedDevice()
+            }
+        }
     }
 
     // --- Delegated actions ---
+    @Composable
+    fun DeviceConfigurationUi() = bt.DeviceConfigurationUi()
+
     fun requestStartDeviceScan() {
         if (!bt.isBluetoothEnabled()) {
             emitSnack(R.string.bluetooth_must_be_enabled_for_scan, SnackbarDuration.Long)
@@ -137,8 +144,6 @@ class BluetoothViewModel @Inject constructor(
     fun setSavedTuning(profile: TuningProfile) = bt.setSavedTuning(profile)
 
     fun clearAllErrors() = bt.clearErrors()
-
-    fun attemptAutoConnectToSavedScale() = bt.attemptAutoConnectToSavedDevice()
 
     fun provideUserInteractionFeedback(type: BluetoothEvent.UserInteractionType, feedbackData: Any) =
         bt.provideUserInteractionFeedback(type, feedbackData)

@@ -18,7 +18,7 @@
 package com.health.openscale.ui.screen.overview
 
 import android.widget.Toast
-import androidx.compose.foundation.background
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,10 +31,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,15 +49,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -73,14 +71,14 @@ import com.health.openscale.core.utils.LocaleUtils
 import com.health.openscale.ui.components.RoundMeasurementIcon
 import com.health.openscale.ui.shared.SharedViewModel
 import com.health.openscale.ui.screen.dialog.DateInputDialog
+import com.health.openscale.ui.screen.dialog.DeleteConfirmationDialog
+import com.health.openscale.ui.screen.dialog.DiscardChangesDialog
 import com.health.openscale.ui.screen.dialog.NumberInputDialog
 import com.health.openscale.ui.screen.dialog.TextInputDialog
 import com.health.openscale.ui.screen.dialog.TimeInputDialog
 import com.health.openscale.ui.screen.dialog.UserInputDialog
 import com.health.openscale.ui.shared.TopBarAction
-import kotlinx.coroutines.launch
 import java.text.DateFormat
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -103,7 +101,7 @@ fun MeasurementDetailScreen(
     sharedViewModel: SharedViewModel
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
 
     // Holds the string representation of measurement values, keyed by MeasurementType ID.
     val valuesState = remember { mutableStateMapOf<Int, String>() }
@@ -118,6 +116,13 @@ fun MeasurementDetailScreen(
     // Flags for date and time dialogs that edit the main measurement timestamp.
     var showDatePickerForMainTimestamp by remember { mutableStateOf(false) }
     var showTimePickerForMainTimestamp by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showDiscardConfirmation by remember { mutableStateOf(false) }
+
+    // Snapshot of the form right after it was (pre)loaded — used to detect unsaved changes ("dirty").
+    var initialValues by remember { mutableStateOf<Map<Int, String>?>(null) }
+    var initialTimestamp by remember { mutableStateOf(0L) }
+    var initialUserId by remember { mutableStateOf(userId) }
 
     val allMeasurementTypes by sharedViewModel.measurementTypes.collectAsState()
     val lastMeasurementToPreloadFrom by sharedViewModel.lastMeasurementOfSelectedUser.collectAsState()
@@ -142,8 +147,8 @@ fun MeasurementDetailScreen(
     LaunchedEffect(measurementId) {
         sharedViewModel.setCurrentMeasurementId(measurementId)
         sharedViewModel.setTopBarTitle(
-            if (measurementId == -1) context.getString(R.string.title_new_measurement)
-            else context.getString(R.string.title_edit_measurement)
+            if (measurementId == -1) resources.getString(R.string.title_new_measurement)
+            else resources.getString(R.string.title_edit_measurement)
         )
     }
 
@@ -207,14 +212,45 @@ fun MeasurementDetailScreen(
                 }
             }
         }
+
+        // Capture the loaded/preloaded state as the baseline for unsaved-changes detection.
+        initialValues = valuesState.toMap()
+        initialTimestamp = measurementTimestampState
+        initialUserId = currentUserIdState
+    }
+
+    // Unsaved-changes detection: current form vs. the captured baseline.
+    val effectiveUserId = pendingUserId ?: currentUserIdState
+    val hasUnsavedChanges = initialValues != null && (
+        valuesState.toMap() != initialValues ||
+        measurementTimestampState != initialTimestamp ||
+        effectiveUserId != initialUserId
+    )
+
+    // Intercept back (both the top-bar arrow — routed through the dispatcher — and system/gesture
+    // back) while there are unsaved changes, and ask before discarding.
+    BackHandler(enabled = hasUnsavedChanges) {
+        showDiscardConfirmation = true
     }
 
     // Configure the top bar save action.
-    LaunchedEffect(currentUserIdState, measurementTimestampState, valuesState.toMap()) {
-        sharedViewModel.setTopBarAction(
+    LaunchedEffect(currentUserIdState, measurementTimestampState, measurementId) {
+        val actions = mutableListOf<TopBarAction>()
+
+        if (measurementId > 0) {
+            actions.add(
+                TopBarAction(
+                    icon = Icons.Default.Delete,
+                    contentDescription = resources.getString(R.string.action_delete_measurement_desc,dateFormat.format(Date(measurementTimestampState))),
+                    onClick = { showDeleteConfirmation = true }
+                )
+            )
+        }
+
+        actions.add(
             TopBarAction(
                 icon = Icons.Default.Save,
-                contentDescription = context.getString(R.string.action_save_measurement),
+                contentDescription = resources.getString(R.string.action_save_measurement),
                 onClick = {
                     val effectiveUserIdForSave = pendingUserId ?: currentUserIdState
 
@@ -242,17 +278,18 @@ fun MeasurementDetailScreen(
                     var allConversionsOk = true
 
                     allMeasurementTypes
-                        .filterNot { it.inputType == InputFieldType.DATE || it.inputType == InputFieldType.TIME } // Date/Time handled by main timestamp
-                        .filterNot { it.isDerived } // Derived values are calculated, not input
+                        .filterNot { it.inputType == InputFieldType.DATE || it.inputType == InputFieldType.TIME }
+                        .filterNot { it.isDerived }
                         .forEach { type ->
                             val inputString = valuesState[type.id]?.trim()
 
                             if (inputString.isNullOrBlank()) return@forEach // Skip empty values
 
-                            val existingValueId = if (measurementId != -1 && measurementId != 0) {
-                                loadedData?.values?.find { v -> v.type.id == type.id }?.value?.id
-                                    ?: 0
-                            } else 0
+                            val existingValueId =
+                                if (measurementId != -1 && measurementId != 0) {
+                                    loadedData?.values?.find { v -> v.type.id == type.id }?.value?.id
+                                        ?: 0
+                                } else 0
 
                             var floatVal: Float? = null
                             var intVal: Int? = null
@@ -264,7 +301,7 @@ fun MeasurementDetailScreen(
                                     if (floatVal == null) {
                                         Toast.makeText(
                                             context,
-                                            context.getString(
+                                            resources.getString(
                                                 R.string.toast_invalid_number_format,
                                                 type.getDisplayName(context),
                                                 inputString
@@ -280,7 +317,7 @@ fun MeasurementDetailScreen(
                                     if (intVal == null) {
                                         Toast.makeText(
                                             context,
-                                            context.getString(
+                                            resources.getString(
                                                 R.string.toast_invalid_integer_format,
                                                 type.getDisplayName(context),
                                                 inputString
@@ -314,16 +351,18 @@ fun MeasurementDetailScreen(
                             )
                         }
 
-                    if (allConversionsOk) {
-                        scope.launch {
-                            sharedViewModel.saveMeasurement(measurementToSave, valueList)
-                        }
-                        pendingUserId = null
-                        isPendingNavigation = true // Trigger loading indicator and navigate back.
-                        navController.popBackStack()
-                    }
-                })
+                    // Any conversion error returned early above, so saving is safe here.
+                    // Fire-and-forget on the ViewModel's scope → the save completes even though we
+                    // navigate away immediately; the result snackbar is shown by the ViewModel
+                    // (and may appear on the previous screen).
+                    sharedViewModel.saveMeasurement(measurementToSave, valueList)
+                    pendingUserId = null
+                    isPendingNavigation = true
+                    navController.popBackStack()
+                }
+            )
         )
+        sharedViewModel.setTopBarActions(actions)
     }
 
     // Show loading indicator while data for an existing measurement is being fetched.
@@ -439,7 +478,7 @@ fun MeasurementDetailScreen(
                                     valuesState[currentType.id] = floatOrNull.toString()
                                     isValid = true
                                 } else {
-                                    Toast.makeText(context, context.getString(R.string.toast_invalid_number_format_short, currentType.getDisplayName(context)), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, resources.getString(R.string.toast_invalid_number_format_short, currentType.getDisplayName(context)), Toast.LENGTH_SHORT).show()
                                 }
                             } else { // INT
                                 val intOrNull = trimmedValue.toIntOrNull()
@@ -447,7 +486,7 @@ fun MeasurementDetailScreen(
                                     valuesState[currentType.id] = intOrNull.toString()
                                     isValid = true
                                 } else {
-                                    Toast.makeText(context, context.getString(R.string.toast_invalid_integer_format_short, currentType.getDisplayName(context)), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, resources.getString(R.string.toast_invalid_integer_format_short, currentType.getDisplayName(context)), Toast.LENGTH_SHORT).show()
                                 }
                             }
                             if (isValid) {
@@ -479,6 +518,44 @@ fun MeasurementDetailScreen(
             }
             else -> { /* Should not be reached as DATE/TIME have their own flags and derived are not editable here. */ }
         }
+    }
+
+    if (showDeleteConfirmation && loadedData != null) {
+        val formattedDate = remember(measurementTimestampState) {
+            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.getDefault())
+                .format(Date(measurementTimestampState))
+        }
+
+        val weightType = allMeasurementTypes.find { it.key == MeasurementTypeKey.WEIGHT }
+        val weightValue = weightType?.let { type ->
+            valuesState[type.id]?.let { value ->
+                LocaleUtils.formatValueForDisplay(value, type.unit)
+            }
+        } ?: ""
+
+        DeleteConfirmationDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            onConfirm = {
+                showDeleteConfirmation = false
+                // VM owns the coroutine → the delete completes even though we navigate away now.
+                sharedViewModel.deleteMeasurement(loadedData!!.measurement)
+                isPendingNavigation = true
+                navController.popBackStack()
+            },
+            title = stringResource(R.string.dialog_title_delete_item),
+            text = stringResource(R.string.dialog_message_delete_item, formattedDate, weightValue)
+        )
+    }
+
+    // Ask before discarding unsaved changes when leaving the screen.
+    if (showDiscardConfirmation) {
+        DiscardChangesDialog(
+            onDismissRequest = { showDiscardConfirmation = false },
+            onConfirm = {
+                isPendingNavigation = true
+                navController.popBackStack()
+            },
+        )
     }
 
     // --- Dialogs for the main measurement timestamp (measurementTimestampState) ---
@@ -619,7 +696,6 @@ fun MeasurementValueEditRow(
             val displayText = when (type.inputType) {
                 InputFieldType.FLOAT, InputFieldType.INT -> LocaleUtils.formatValueForDisplay(value, type.unit)
                 InputFieldType.TEXT, InputFieldType.USER, InputFieldType.DATE, InputFieldType.TIME -> value
-                else -> ""
             }
             Text(
                 text = displayText,

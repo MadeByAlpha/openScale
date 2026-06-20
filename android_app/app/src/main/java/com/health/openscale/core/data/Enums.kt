@@ -18,7 +18,6 @@
 package com.health.openscale.core.data
 
 import android.content.Context
-import android.text.InputType
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
@@ -34,11 +33,11 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Bloodtype
+import androidx.compose.material.icons.filled.BubbleChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.DeviceThermostat
-import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Egg
@@ -49,6 +48,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.Hive
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalDining
 import androidx.compose.material.icons.filled.LocalDrink
@@ -59,25 +59,30 @@ import androidx.compose.material.icons.filled.OilBarrel
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.QuestionMark
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.ScatterPlot
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SentimentSatisfied
 import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
 import androidx.compose.material.icons.filled.SentimentVerySatisfied
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.StackedLineChart
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.health.openscale.R
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.time.temporal.WeekFields
 import java.util.Locale
 
 enum class SupportedLanguage(val code: String, val nativeDisplayName: String) {
@@ -85,38 +90,39 @@ enum class SupportedLanguage(val code: String, val nativeDisplayName: String) {
     // Native names from https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
     //ARABIC("ar", "Arabic (العربية)"),
     //BENGALI("bn-BD", "Bengali (বাংলা)"),
+    BASQUE("eu", "Basque (Euskara)"),
     //CATALAN("ca", "Catalan (català)"),
     CHINESE_SIMPLIFIED("zh-CN", "Chinese (simplified; 中文 (汉语))"),
     CHINESE_TRADITIONAL("zh-TW", "Chinese (traditional; 中文 (繁體))"),
     //CROATIAN("hr", "Croatian (hrvatski jezik)"),
     //CZECH("cs", "Czech (čeština)"),
     //DANISH("da", "Danish (dansk)"),
-    //DUTCH("nl", "Dutch (Nederlands)"),
+    DUTCH("nl", "Dutch (Nederlands)"),
     ENGLISH("en", "English"),
     //ESPERANTO("eo", "Esperanto"),
     FINNISH("fi", "Finnish (suomi)"),
     FRENCH("fr", "French (français)"),
     //GALICIAN("gl", "Galician (Galego)"),
     GERMAN("de", "German (Deutsch)"),
-    //GREEK("el", "Greek (ελληνικά)"),
-    //HEBREW("iw", "Hebrew (עברית)"),
+    GREEK("el", "Greek (ελληνικά)"),
+    HEBREW("iw", "Hebrew (עברית)"),
     //HUNGARIAN("hu", "Hungarian (magyar)"),
     //INDONESIAN("id", "Indonesian (Bahasa Indonesia)"),
-    //ITALIAN("it", "Italian (Italiano)"),
+    ITALIAN("it", "Italian (Italiano)"),
     JAPANESE("ja", "Japanese (日本語)"),
-    //KOREAN("ko", "Korean (한국어)"),
+    KOREAN("ko", "Korean (한국어)"),
     //LITHUANIAN("lt", "Lithuanian (lietuvių kalba)"),
     //NORWEGIAN_BOKMAL("nb", "Norwegian Bokmål (Norsk)"),
     POLISH("pl", "Polish (język polski)"),
     PORTUGUESE_BRAZIL("pt-BR", "Portuguese (Brazil; Português)"),
-    //ROMANIAN("ro", "Romanian (Română)"),
-    //RUSSIAN("ru", "Russian (русский)"),
+    ROMANIAN("ro", "Romanian (Română)"),
+    RUSSIAN("ru", "Russian (русский)"),
     //SLOVAK("sk", "Slovak (Slovenčina)"),
-    //SLOVENIAN("sl", "Slovenian (Slovenski Jezik)"),
-    //SPANISH("es", "Spanish (Español)"),
-    SWEDISH("sv", "Swedish (Svenska)");
+    SLOVENIAN("sl", "Slovenian (Slovenski Jezik)"),
+    SPANISH("es", "Spanish (Español)"),
+    SWEDISH("sv", "Swedish (Svenska)"),
     //TAMIL("ta", "Tamil (தமிழ்)"),
-    //TURKISH("tr", "Turkish (Türkçe)"),
+    TURKISH("tr", "Turkish (Türkçe)");
     //UKRAINIAN("uk", "Ukrainian (Українська)"),
     //VIETNAMESE("vi", "Vietnamese (Tiếng Việt)");
 
@@ -147,14 +153,14 @@ enum class SupportedLanguage(val code: String, val nativeDisplayName: String) {
     }
 }
 
-enum class GenderType(@StringRes val displayNameResId: Int) {
+enum class GenderType(@param:StringRes val displayNameResId: Int) {
     MALE(R.string.gender_male),
     FEMALE(R.string.gender_female);
 
     fun isMale(): Boolean {
         return this == MALE}
 
-    fun getDisplayName(context: android.content.Context): String {
+    fun getDisplayName(context: Context): String {
         return context.getString(displayNameResId)
     }
 }
@@ -206,19 +212,9 @@ enum class WeightUnit {
             KG -> return 0
         }
     }
-
-    companion object {
-        fun fromInt(unit: Int): WeightUnit {
-            when (unit) {
-                1 -> return LB
-                2 -> return ST
-            }
-            return KG
-        }
-    }
 }
 
-enum class Limb(@StringRes val displayNameResId: Int) {
+enum class Limb(@param:StringRes val displayNameResId: Int) {
     LEFT_ARM(R.string.amputation_left_arm),
     RIGHT_ARM(R.string.amputation_right_arm),
     LEFT_LEG(R.string.amputation_left_leg),
@@ -226,7 +222,7 @@ enum class Limb(@StringRes val displayNameResId: Int) {
 }
 
 enum class AmputationPart(
-    @StringRes val displayNameResId: Int,
+    @param:StringRes val displayNameResId: Int,
     val correctionValue: Float
 ) {
     HAND(R.string.amputation_hand, 0.8f),
@@ -271,20 +267,10 @@ enum class MeasureUnit {
             INCH -> return 1
         }
     }
-
-    companion object {
-        fun fromInt(unit: Int): MeasureUnit {
-            when (unit) {
-                0 -> return CM
-                1 -> return INCH
-            }
-            return CM
-        }
-    }
 }
 
 sealed class IconResource {
-    data class PainterResource(@DrawableRes val id: Int) : IconResource()
+    data class PainterResource(@param:DrawableRes val id: Int) : IconResource()
     data class VectorResource(val imageVector: ImageVector) : IconResource()
 }
 
@@ -368,12 +354,16 @@ enum class MeasurementTypeIcon(val resource: IconResource) {
     IC_M_MEDICATION(IconResource.VectorResource(Icons.Filled.Medication)),
     IC_M_LIST(IconResource.VectorResource(Icons.AutoMirrored.Filled.List)),
     IC_M_LABEL(IconResource.VectorResource(Icons.AutoMirrored.Filled.Label)),
-    IC_M_PERSON(IconResource.VectorResource(Icons.Filled.Person));
+    IC_M_PERSON(IconResource.VectorResource(Icons.Filled.Person)),
+    IC_M_WATER_DROP(IconResource.VectorResource(Icons.Filled.WaterDrop)),
+    IC_M_SCATTER_PLOT(IconResource.VectorResource(Icons.Filled.ScatterPlot)),
+    IC_M_BUBBLE_CHART(IconResource.VectorResource(Icons.Filled.BubbleChart)),
+    IC_M_HIVE(IconResource.VectorResource(Icons.Filled.Hive));
 }
 
 enum class MeasurementTypeKey(
     val id: Int,
-    @StringRes val localizedNameResId: Int,
+    @param:StringRes val localizedNameResId: Int,
     val allowedUnitTypes: List<UnitType>,
     val allowedInputType: List<InputFieldType>
 ) {
@@ -399,11 +389,18 @@ enum class MeasurementTypeKey(
     CALIPER(20, R.string.measurement_type_fat_caliper, listOf(UnitType.PERCENT), listOf(InputFieldType.FLOAT)),
     BMR(21, R.string.measurement_type_bmr, listOf(UnitType.KCAL), listOf(InputFieldType.FLOAT)),
     TDEE(22, R.string.measurement_type_tdee, listOf(UnitType.KCAL), listOf(InputFieldType.FLOAT)),
-    CALORIES(23, R.string.measurement_type_calories, listOf(UnitType.KCAL), listOf(InputFieldType.FLOAT)),
-    DATE(24, R.string.measurement_type_date, listOf(UnitType.NONE), listOf(InputFieldType.DATE)),
-    TIME(25, R.string.measurement_type_time, listOf(UnitType.NONE), listOf(InputFieldType.TIME)),
-    COMMENT(26, R.string.measurement_type_comment, listOf(UnitType.NONE), listOf(InputFieldType.TEXT)),
-    USER(27, R.string.measurement_type_user, listOf(UnitType.NONE), listOf(InputFieldType.USER)),
+    HEART_RATE(23, R.string.measurement_type_heart_rate, listOf(UnitType.BPM), listOf(InputFieldType.INT)),
+    CALORIES(24, R.string.measurement_type_calories, listOf(UnitType.KCAL), listOf(InputFieldType.FLOAT)),
+    DATE(25, R.string.measurement_type_date, listOf(UnitType.NONE), listOf(InputFieldType.DATE)),
+    TIME(26, R.string.measurement_type_time, listOf(UnitType.NONE), listOf(InputFieldType.TIME)),
+    COMMENT(27, R.string.measurement_type_comment, listOf(UnitType.NONE), listOf(InputFieldType.TEXT)),
+    USER(28, R.string.measurement_type_user, listOf(UnitType.NONE), listOf(InputFieldType.USER)),
+    IMPEDANCE(29, R.string.measurement_type_impedance, listOf(UnitType.OHM), listOf(InputFieldType.FLOAT)),
+    IMPEDANCE_LOW(30, R.string.measurement_type_impedance_low, listOf(UnitType.OHM), listOf(InputFieldType.FLOAT)),
+    ECW(31, R.string.measurement_type_ecw, listOf(UnitType.PERCENT, UnitType.KG, UnitType.LB, UnitType.ST), listOf(InputFieldType.FLOAT)),
+    ICW(32, R.string.measurement_type_icw, listOf(UnitType.PERCENT, UnitType.KG, UnitType.LB, UnitType.ST), listOf(InputFieldType.FLOAT)),
+    PROTEIN(33, R.string.measurement_type_protein, listOf(UnitType.PERCENT, UnitType.KG, UnitType.LB, UnitType.ST), listOf(InputFieldType.FLOAT)),
+    BCM(34, R.string.measurement_type_bcm, listOf(UnitType.KG, UnitType.LB, UnitType.ST), listOf(InputFieldType.FLOAT)),
     CUSTOM(99, R.string.measurement_type_custom_default_name, UnitType.entries.toList(), listOf(InputFieldType.FLOAT, InputFieldType.INT, InputFieldType.TEXT, InputFieldType.DATE, InputFieldType.TIME));
 }
 
@@ -416,6 +413,8 @@ enum class UnitType(val displayName: String) {
     CM("cm"),
     INCH("in"),
     KCAL("kcal"),
+    BPM("bpm"),
+    OHM("Ω"),
     NONE("");
 
     fun isWeightUnit(): Boolean {
@@ -444,29 +443,118 @@ enum class Trend {
     UP, DOWN, NONE, NOT_APPLICABLE
 }
 
-enum class TimeRangeFilter(@StringRes val displayNameResId: Int) {
+enum class TimeRangeFilter(@param:StringRes val displayNameResId: Int) {
     ALL_DAYS(R.string.time_range_all_days),
     LAST_7_DAYS(R.string.time_range_last_7_days),
     LAST_30_DAYS(R.string.time_range_last_30_days),
     LAST_365_DAYS(R.string.time_range_last_365_days),
     CUSTOM(R.string.time_range_custom);
 
-    fun getDisplayName(context: android.content.Context): String {
+    fun getDisplayName(context: Context): String {
         return context.getString(displayNameResId)
     }
 }
 
-enum class SmoothingAlgorithm(@StringRes val displayNameResId: Int) {
+enum class AggregationLevel(@param:StringRes val displayNameResId: Int) {
+    NONE(R.string.aggregation_level_none),
+    DAY(R.string.aggregation_level_day),
+    WEEK(R.string.aggregation_level_week),
+    MONTH(R.string.aggregation_level_month),
+    YEAR(R.string.aggregation_level_year);
+
+    fun getDisplayName(context: Context): String {
+        return context.getString(displayNameResId)
+    }
+
+
+    /**
+     * Returns the inclusive start and exclusive end of the period containing [timestamp]
+     * as epoch milliseconds.
+     *
+     * For [NONE] and [DAY] the period is a single calendar day.
+     */
+    fun periodBounds(
+        timestamp: Long,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): Pair<Long, Long> {
+        val date = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+        val (start, end) = when (this) {
+            NONE,
+            DAY   -> date to date.plusDays(1)
+            WEEK  -> { val mon = date.with(DayOfWeek.MONDAY); mon to mon.plusWeeks(1) }
+            MONTH -> { val f = date.withDayOfMonth(1); f to f.plusMonths(1) }
+            YEAR  -> { val f = date.withDayOfYear(1); f to f.plusYears(1) }
+        }
+        return start.atStartOfDay(zone).toInstant().toEpochMilli() to
+                end.atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+
+    /**
+     * Returns a stable, locale-independent key for the period containing [timestamp].
+     * Suitable as a LazyColumn item key or Map key.
+     *
+     * Examples: "2025-04-07" (DAY/NONE), "2025-W15" (WEEK), "2025-4" (MONTH), "2025" (YEAR).
+     */
+    fun periodKey(
+        timestamp: Long,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String {
+        val date = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+        return when (this) {
+            NONE,
+            DAY   -> date.toString()
+            WEEK  -> {
+                val wf = WeekFields.of(Locale.getDefault())
+                "${date.get(wf.weekBasedYear())}-W${date.get(wf.weekOfWeekBasedYear())}"
+            }
+            MONTH -> "${date.year}-${date.monthValue}"
+            YEAR  -> "${date.year}"
+        }
+    }
+
+    /**
+     * Returns a human-readable, locale-sensitive label for the period containing [timestamp].
+     *
+     * Intentionally separate from [periodKey] — labels are locale-dependent and must
+     * not be used as stable identifiers.
+     *
+     * @param calendarWeekAbbrev Localised abbreviation for "calendar week" (e.g. "CW" / "KW").
+     *                           Only used for [WEEK].
+     */
+    fun periodLabel(
+        timestamp: Long,
+        calendarWeekAbbrev: String,
+        locale: Locale = Locale.getDefault(),
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String {
+        val date = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+        return when (this) {
+            NONE,
+            DAY   -> date.format(
+                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
+            )
+            WEEK  -> {
+                val wf = WeekFields.of(locale)
+                "${date.get(wf.weekBasedYear())} – $calendarWeekAbbrev ${date.get(wf.weekOfWeekBasedYear())}"
+            }
+            MONTH -> date.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale))
+            YEAR  -> date.year.toString()
+        }
+    }
+
+}
+
+enum class SmoothingAlgorithm(@param:StringRes val displayNameResId: Int) {
     NONE(R.string.smoothing_algorithm_none),
     SIMPLE_MOVING_AVERAGE(R.string.smoothing_algorithm_sma),
     EXPONENTIAL_SMOOTHING(R.string.smoothing_algorithm_ses);
 
-    fun getDisplayName(context: android.content.Context): String {
+    fun getDisplayName(context: Context): String {
         return context.getString(displayNameResId)
     }
 }
 
-enum class PolynomialDegree(val degree: Int, @StringRes val displayNameRes: Int) {
+enum class PolynomialDegree(val degree: Int, @param:StringRes val displayNameRes: Int) {
     LINEAR(1, R.string.poly_degree_linear),
     QUADRATIC(2, R.string.poly_degree_quadratic),
     CUBIC(3, R.string.poly_degree_cubic);
@@ -516,8 +604,6 @@ enum class EvaluationState {
 enum class ConnectionStatus {
     /** No BT flow started yet. */
     NONE,
-    /** Ready but not connected; idle state after init or after a clean stop. */
-    IDLE,
     BROADCAST_LISTENING,
     /** Explicitly not connected (after a disconnect or failure). */
     DISCONNECTED,
@@ -537,7 +623,8 @@ enum class BodyFatFormulaOption {
     DEURENBERG_1992,
     EDDY_1976,
     GALLAGHER_2000_NON_ASIAN,
-    GALLAGHER_2000_ASIAN;
+    GALLAGHER_2000_ASIAN,
+    US_NAVY;
 
     fun displayName(context: Context) = when (this) {
         OFF -> context.getString(R.string.formula_off)
@@ -546,6 +633,7 @@ enum class BodyFatFormulaOption {
         EDDY_1976 -> context.getString(R.string.formula_bf_eddy_1976)
         GALLAGHER_2000_NON_ASIAN -> context.getString(R.string.formula_bf_gallagher_2000_non_asian)
         GALLAGHER_2000_ASIAN -> context.getString(R.string.formula_bf_gallagher_2000_asian)
+        US_NAVY -> context.getString(R.string.formula_bf_us_navy)
     }
 
     fun shortDescription(ctx: Context) = when (this) {
@@ -555,6 +643,7 @@ enum class BodyFatFormulaOption {
         EDDY_1976 -> ctx.getString(R.string.bf_eddy_1976_short)
         GALLAGHER_2000_NON_ASIAN -> ctx.getString(R.string.bf_gallagher_2000_non_asian_short)
         GALLAGHER_2000_ASIAN -> ctx.getString(R.string.bf_gallagher_2000_asian_short)
+        US_NAVY -> ctx.getString(R.string.bf_us_navy_short)
     }
     fun longDescription(ctx: Context) = when (this) {
         OFF -> ctx.getString(R.string.formula_desc_off_long)
@@ -563,6 +652,7 @@ enum class BodyFatFormulaOption {
         EDDY_1976 -> ctx.getString(R.string.bf_eddy_1976_long)
         GALLAGHER_2000_NON_ASIAN -> ctx.getString(R.string.bf_gallagher_2000_non_asian_long)
         GALLAGHER_2000_ASIAN -> ctx.getString(R.string.bf_gallagher_2000_asian_long)
+        US_NAVY -> ctx.getString(R.string.bf_us_navy_long)
     }
 }
 
