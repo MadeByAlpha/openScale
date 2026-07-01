@@ -104,15 +104,14 @@ class EufyC20Handler : ScaleDeviceHandler() {
             
             // compute composition if possible
             if (s.hasWeight() && s.impedance > 0.0) {
-                val sex = if (user.gender == GenderType.MALE) 1 else 0
-                val lib = MiScaleLib(sex, user.age, user.bodyHeight)
+                val lib = MiScaleLib(user.gender == GenderType.MALE, user.age, user.bodyHeight)
                 val wf = s.weight
                 s.fat = lib.getBodyFat(wf, s.impedance.toFloat())
                 s.water = lib.getWater(wf, s.impedance.toFloat())
                 s.muscle = lib.getMuscle(wf, s.impedance.toFloat())
                 s.bone = lib.getBoneMass(wf, s.impedance.toFloat())
                 s.lbm = lib.getLBM(wf, s.impedance.toFloat())
-                s.visceralFat = lib.getVisceralFat(wf)
+                s.visceralFat = lib.getVisceralFat(wf, s.impedance.toFloat())
             }
             
             // if full measurement -> clear stored and stop

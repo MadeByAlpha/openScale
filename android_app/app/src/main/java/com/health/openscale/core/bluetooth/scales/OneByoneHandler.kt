@@ -220,13 +220,13 @@ class OneByoneHandler : ScaleDeviceHandler() {
 
         try {
             // Derivations
-            m.impedance = impedanceOhm
-            m.fat = lib.getBodyFat(m.weight, m.impedance)
-            m.water = lib.getWater(m.weight, m.impedance)
-            m.bone = lib.getBoneMass(m.weight, m.impedance)
-            m.visceralFat = lib.getVisceralFat(m.weight, m.impedance)
-            m.muscle = lib.getMuscle(m.weight, m.impedance)
-            m.lbm = lib.getLBM(m.weight, m.impedance)
+            m.impedance = impedanceOhm.toDouble()
+            m.fat = lib.getBodyFat(m.weight, impedanceOhm)
+            m.water = lib.getWater(m.weight, impedanceOhm)
+            m.bone = lib.getBoneMass(m.weight, impedanceOhm)
+            m.visceralFat = lib.getVisceralFat(m.weight, impedanceOhm)
+            m.muscle = lib.getMuscle(m.weight, impedanceOhm)
+            m.lbm = lib.getLBM(m.weight, impedanceOhm)
 
             publish(m)
         } catch (t: Throwable) {

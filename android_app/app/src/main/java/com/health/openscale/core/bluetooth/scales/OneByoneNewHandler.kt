@@ -173,20 +173,18 @@ class OneByoneNewHandler : ScaleDeviceHandler() {
     // ---- Body-comp population -------------------------------------------------
 
     private fun populateBodyComp(m: ScaleMeasurement, impedanceOhm: Int, u: ScaleUser) {
-        val gender = if (u.gender.isMale()) 1 else 0
-
         // The legacy driver used ConverterUtils.fromCentimeter(heightCm, user.measureUnit) here.
         // We keep the same call to preserve parity with historical values expected by the vendor lib.
-        val heightForLib: Float =u.bodyHeight
+        val lib = OneByoneNewLib(u.gender.isMale(), u.age, u.bodyHeight)
+        val impedance = impedanceOhm.toFloat()
 
-        val lib = OneByoneNewLib(gender, u.age, heightForLib, u.activityLevel.toInt())
-
-        m.fat         = lib.getBodyFatPercentage(m.weight, impedanceOhm)
-        m.water       = lib.getWaterPercentage(m.weight, impedanceOhm)
-        m.bone        = lib.getBoneMass(m.weight, impedanceOhm)
-        m.visceralFat = lib.getVisceralFat(m.weight)
-        m.muscle      = lib.getSkeletonMusclePercentage(m.weight, impedanceOhm)
-        m.lbm         = lib.getLBM(m.weight, impedanceOhm)
+        val weight = m.weight.toFloat()
+        m.fat         = lib.getBodyFat(weight, impedance)    // getBodyFatPercentage
+        m.water       = lib.getWater(weight, impedance)      // getWaterPercentage
+        m.bone        = lib.getBoneMass(weight, impedance)
+        m.visceralFat = lib.getVisceralFat(weight, impedance)
+        m.muscle      = lib.getMuscle(weight, impedance)     // getSkeletonMusclePercentage
+        m.lbm         = lib.getLBM(weight, impedance)
     }
 
     // ---- Outbound commands ----------------------------------------------------

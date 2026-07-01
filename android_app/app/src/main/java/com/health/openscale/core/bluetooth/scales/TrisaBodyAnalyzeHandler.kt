@@ -200,12 +200,11 @@ class TrisaBodyAnalyzeHandler : ScaleDeviceHandler() {
         if (hasR2 && r2Offset + 4 <= data.size && isValidUser(user)) {
             val resistance2 = getBase10Float(data, r2Offset)
             val impedance = if (resistance2 < 410f) 3.0f else 0.3f * (resistance2 - 400f)
-            val sexFlag = if (user!!.gender.isMale()) 1 else 0
-            val lib = TrisaBodyAnalyzeLib(sexFlag, user.age, user.bodyHeight)
-            measurement.fat = lib.getFat(weightKg, impedance)
+            val lib = TrisaBodyAnalyzeLib(user!!.gender.isMale(), user.age, user.bodyHeight)
+            measurement.fat = lib.getBodyFat(weightKg, impedance)
             measurement.water = lib.getWater(weightKg, impedance)
             measurement.muscle = lib.getMuscle(weightKg, impedance)
-            measurement.bone = lib.getBone(weightKg, impedance)
+            measurement.bone = lib.getBoneMass(weightKg, impedance)
             // Store the raw resistance so body composition can be recomputed later.
             measurement.impedance = resistance2.toDouble()
         }

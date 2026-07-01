@@ -445,15 +445,14 @@ class ESCS20MHandler : ScaleDeviceHandler() {
             // Renpho's reported values than YunmaiLib for this scale's resistance range. The QN
             // resistance-to-impedance conversion from QNHandler is applied first, as QN scales
             // share the same Lefu/Yunmai hardware lineage as this scale.
-            val sex  = if (user.gender.isMale()) 1 else 0
-            val calc = TrisaBodyAnalyzeLib(sex, user.age, user.bodyHeight)
+            val calc = TrisaBodyAnalyzeLib(user.gender.isMale(), user.age, user.bodyHeight)
             val imp  = if (biaResistance < 410) 3.0f else 0.3f * (biaResistance - 400f)
-            val fat  = calc.getFat(weightKg, imp)
+            val fat  = calc.getBodyFat(weightKg, imp)
             acc.impedance = biaResistance.toDouble()
             acc.fat       = fat
             acc.muscle    = calc.getMuscle(weightKg, imp)
             acc.water     = calc.getWater(weightKg, imp)
-            acc.bone      = calc.getBone(weightKg, imp)
+            acc.bone      = calc.getBoneMass(weightKg, imp)
             acc.lbm       = weightKg * (100f - fat) / 100f
             LogManager.i(TAG, "Body composition: fat=${acc.fat}% muscle=${acc.muscle}%")
         }

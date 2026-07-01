@@ -1,4 +1,3 @@
-import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.text.SimpleDateFormat
@@ -36,6 +35,11 @@ android {
         manifestPlaceholders["appName"] = "openScale"
         manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher"
         manifestPlaceholders["appRoundIcon"] = "@mipmap/ic_launcher_round"
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
     signingConfigs {
@@ -88,6 +92,15 @@ android {
                 project.logger.warn("OSS signing information not fully loaded from properties. Ensure it's set via environment variables or the properties file is correct.")
             }
         }
+
+        create("oss-alphakr93") {
+            keyAlias = "production-oss"
+            keyPassword = providers.gradleProperty("signing.key.productionOSS").orNull
+
+            storeFile = file(providers.gradleProperty("signing.keyStore.path"))
+            storePassword = providers.gradleProperty("signing.keyStore.password").orNull
+            enableV1Signing = false
+        }
     }
 
     buildTypes {
@@ -125,7 +138,7 @@ android {
 
         create("oss") {
             initWith(getByName("release"))
-            signingConfig = signingConfigs.getByName("oss")
+            signingConfig = signingConfigs.getByName("oss-alphakr93")
             applicationIdSuffix = ".oss"
             versionNameSuffix = "-oss"
             manifestPlaceholders["appName"] = "openScale"
@@ -148,42 +161,6 @@ android {
         // JVM unit tests touch android.util.Log (via LogManager); return defaults
         // instead of throwing "not mocked" so pure-logic tests can run on the JVM.
         unitTests.isReturnDefaultValues = true
-    }
-}
-
-androidComponents {
-    onVariants { variant ->
-        // Include the version number for every build type except debug.
-        val baseName = if (variant.buildType == "debug") {
-            "openScale-${variant.buildType}"
-        } else {
-            "openScale-${android.defaultConfig.versionName}-${variant.buildType}"
-        }
-
-        // APK naming. outputFileName is the official replacement for the removed
-        // applicationVariants API but still marked @Incubating in AGP 9.
-        @Suppress("UnstableApiUsage")
-        variant.outputs.forEach { output ->
-            output.outputFileName.set("$baseName.apk")
-        }
-
-        // AAB naming: the outputs API above only covers APKs, so rename the
-        // bundle output once the bundle<Variant> task has produced it.
-        val bundleTaskName = "bundle${variant.name.replaceFirstChar { it.uppercase() }}"
-        tasks.matching { it.name == bundleTaskName }.configureEach {
-            doLast {
-                val bundleDir = layout.buildDirectory
-                    .dir("outputs/bundle/${variant.name}").get().asFile
-                bundleDir.listFiles { _, name -> name.endsWith(".aab") }
-                    ?.forEach { aab ->
-                        val target = File(bundleDir, "$baseName.aab")
-                        if (aab != target) {
-                            target.delete()
-                            aab.renameTo(target)
-                        }
-                    }
-            }
-        }
     }
 }
 

@@ -151,16 +151,16 @@ class OkOkHandler : ScaleDeviceHandler() {
             publish(ScaleMeasurement().apply {
                 userId = user.id
                 weight = kg.first
-                impedance = kg.second
-                if (user.age <= 5 || impedance == 0f) return@apply
+                impedance = kg.second.toDouble()
+                if (user.age <= 5 || impedance == 0.0) return@apply
 
-                val lib: MonoSensorAnalyzeLib = OkOkV2Lib(user.age, user.bodyHeight, user.gender.isMale())
-                water = lib.getWater(weight, impedance)
-                visceralFat = lib.getVisceralFat(weight, impedance)
-                fat = lib.getBodyFat(weight, impedance)
-                muscle = lib.getMuscle(weight ,impedance)
-                lbm = lib.getLBM(weight, impedance)
-                bone = lib.getBoneMass(weight, impedance)
+                val lib: MonoSensorAnalyzeLib = OkOkV2Lib(user.gender.isMale(), user.age, user.bodyHeight)
+                water = lib.getWater(weight, kg.second)
+                visceralFat = lib.getVisceralFat(weight, kg.second)
+                fat = lib.getBodyFat(weight, kg.second)
+                muscle = lib.getMuscle(weight ,kg.second)
+                lbm = lib.getLBM(weight, kg.second)
+                bone = lib.getBoneMass(weight, kg.second)
                 bmr = (lib as OkOkV2Lib).getBMR(weight)
             })
             return BroadcastAction.CONSUMED_STOP
