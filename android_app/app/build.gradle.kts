@@ -23,12 +23,12 @@ ksp {
 
 android {
     namespace = "com.health.openscale"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.health.openscale"
         minSdk = 31
-        targetSdk = 37
+        targetSdk = 36	// TEMP: Android 17 is still beta
         versionCode = 75
         versionName = "3.1.1"
 
@@ -39,6 +39,7 @@ android {
     }
 
     signingConfigs {
+	/*
         create("release") {
             val keystorePropertiesFile = rootProject.file("../../openScale.keystore")
             val keystoreProperties = Properties()
@@ -88,6 +89,16 @@ android {
                 project.logger.warn("OSS signing information not fully loaded from properties. Ensure it's set via environment variables or the properties file is correct.")
             }
         }
+	 */
+
+	create("oss") {
+	    keyAlias = "production-oss"
+	    keyPassword = providers.gradleProperty("signing.key.productionOSS").orNull
+	    enableV1Signing = false
+
+	    storeFile = file(providers.gradleProperty("signing.keyStore.path"))
+	    storePassword = providers.gradleProperty("signing.keyStore.password").orNull
+	}
     }
 
     buildTypes {
@@ -104,7 +115,7 @@ android {
         }
 
         release {
-            signingConfig = signingConfigs.getByName("release")
+            //signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -113,6 +124,7 @@ android {
             )
         }
 
+	/*
         create("beta") {
             initWith(getByName("debug"))
             signingConfig = signingConfigs.getByName("debug")
@@ -122,6 +134,7 @@ android {
             manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher_beta"
             manifestPlaceholders["appRoundIcon"] = "@mipmap/ic_launcher_beta_round"
         }
+	 */
 
         create("oss") {
             initWith(getByName("release"))
@@ -151,6 +164,7 @@ android {
     }
 }
 
+/* // TODO: AGP 9.1+
 androidComponents {
     onVariants { variant ->
         // Include the version number for every build type except debug.
@@ -186,7 +200,7 @@ androidComponents {
         }
     }
 }
-
+ */
 
 dependencies {
 
