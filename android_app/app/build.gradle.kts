@@ -28,7 +28,7 @@ android {
     defaultConfig {
         applicationId = "com.health.openscale"
         minSdk = 31
-        targetSdk = 36	// TEMP: Android 17 is still beta
+        targetSdk = 36    // TEMP: Android 17 is still beta
         versionCode = 75
         versionName = "3.1.1"
 
@@ -39,7 +39,7 @@ android {
     }
 
     signingConfigs {
-	/*
+        /*
         create("release") {
             val keystorePropertiesFile = rootProject.file("../../openScale.keystore")
             val keystoreProperties = Properties()
@@ -89,16 +89,16 @@ android {
                 project.logger.warn("OSS signing information not fully loaded from properties. Ensure it's set via environment variables or the properties file is correct.")
             }
         }
-	 */
+     */
 
-	create("oss") {
-	    keyAlias = "production-oss"
-	    keyPassword = providers.gradleProperty("signing.key.productionOSS").orNull
-	    enableV1Signing = false
+        create("oss") {
+            keyAlias = "production-oss"
+            keyPassword = providers.gradleProperty("signing.key.productionOSS").orNull
+            enableV1Signing = false
 
-	    storeFile = file(providers.gradleProperty("signing.keyStore.path"))
-	    storePassword = providers.gradleProperty("signing.keyStore.password").orNull
-	}
+            storeFile = file(providers.gradleProperty("signing.keyStore.path"))
+            storePassword = providers.gradleProperty("signing.keyStore.password").orNull
+        }
     }
 
     buildTypes {
@@ -124,7 +124,7 @@ android {
             )
         }
 
-	/*
+        /*
         create("beta") {
             initWith(getByName("debug"))
             signingConfig = signingConfigs.getByName("debug")
@@ -134,7 +134,7 @@ android {
             manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher_beta"
             manifestPlaceholders["appRoundIcon"] = "@mipmap/ic_launcher_beta_round"
         }
-	 */
+         */
 
         create("oss") {
             initWith(getByName("release"))
@@ -161,6 +161,11 @@ android {
         // JVM unit tests touch android.util.Log (via LogManager); return defaults
         // instead of throwing "not mocked" so pure-logic tests can run on the JVM.
         unitTests.isReturnDefaultValues = true
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 }
 

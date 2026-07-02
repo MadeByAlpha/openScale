@@ -1,7 +1,7 @@
 [versions]
 agp = "9.0.0"	# FIXME: Android IntelliJ Plugin doesn't support latest version of AGP
 kotlin = "2.4.0"
-coreKtx = "1.19.0"
+coreKtx = "1.18.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
