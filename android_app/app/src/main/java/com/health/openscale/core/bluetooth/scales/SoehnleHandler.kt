@@ -53,6 +53,55 @@ import java.util.UUID
  */
 class SoehnleHandler : ScaleDeviceHandler() {
 
+    private companion object {
+        // --- UUIDs ---------------------------------------------------------------
+
+        // Standard services/characteristics
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_BATTERY = uuid16(0x180F)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_BATTERY_LEVEL = uuid16(0x2A19)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_CURRENT_TIME = uuid16(0x1805)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_CURRENT_TIME = uuid16(0x2A2B)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_USER_DATA = uuid16(0x181C)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_CONTROL_POINT = uuid16(0x2A9F)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_AGE = uuid16(0x2A80)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_GENDER = uuid16(0x2A8C)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_HEIGHT = uuid16(0x2A8E)
+
+        // Soehnle custom service
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_SOEHNLE = UUID.fromString("352e3000-28e9-40b8-a361-6db4cca4147c")
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_SOEHNLE_A = UUID.fromString("352e3001-28e9-40b8-a361-6db4cca4147c") // notify
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_SOEHNLE_B = UUID.fromString("352e3004-28e9-40b8-a361-6db4cca4147c") // notify
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_SOEHNLE_CMD = UUID.fromString("352e3002-28e9-40b8-a361-6db4cca4147c") // write
+    }
+
     override fun supportFor(device: com.health.openscale.core.service.ScannedDeviceInfo): DeviceSupport? {
         val name = device.name
         val supported = name.startsWith("Shape200") || name.startsWith("Shape100") ||
@@ -79,27 +128,6 @@ class SoehnleHandler : ScaleDeviceHandler() {
             )
         } else null
     }
-
-    // --- UUIDs ---------------------------------------------------------------
-
-    // Standard services/characteristics
-    private val SVC_BATTERY = uuid16(0x180F)
-    private val CHR_BATTERY_LEVEL = uuid16(0x2A19)
-
-    private val SVC_CURRENT_TIME = uuid16(0x1805)
-    private val CHR_CURRENT_TIME = uuid16(0x2A2B)
-
-    private val SVC_USER_DATA = uuid16(0x181C)
-    private val CHR_USER_CONTROL_POINT = uuid16(0x2A9F)
-    private val CHR_USER_AGE = uuid16(0x2A80)
-    private val CHR_USER_GENDER = uuid16(0x2A8C)
-    private val CHR_USER_HEIGHT = uuid16(0x2A8E)
-
-    // Soehnle custom service
-    private val SVC_SOEHNLE = UUID.fromString("352e3000-28e9-40b8-a361-6db4cca4147c")
-    private val CHR_SOEHNLE_A = UUID.fromString("352e3001-28e9-40b8-a361-6db4cca4147c") // notify
-    private val CHR_SOEHNLE_B = UUID.fromString("352e3004-28e9-40b8-a361-6db4cca4147c") // notify
-    private val CHR_SOEHNLE_CMD = UUID.fromString("352e3002-28e9-40b8-a361-6db4cca4147c") // write
 
     // --- Lifecycle -----------------------------------------------------------
 

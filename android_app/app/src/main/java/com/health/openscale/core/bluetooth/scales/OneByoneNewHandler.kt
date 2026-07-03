@@ -52,17 +52,25 @@ import kotlin.math.roundToInt
  */
 class OneByoneNewHandler : ScaleDeviceHandler() {
 
-    // ---- UUIDs ---------------------------------------------------------------
+    private companion object {
+        // ---- UUIDs ---------------------------------------------------------------
 
-    private val SVC_FFB0 = uuid16(0xFFB0)
-    private val CHR_FFB2 = uuid16(0xFFB2) // notify frames
-    private val CHR_FFB1 = uuid16(0xFFB1) // write commands
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_FFB0 = uuid16(0xFFB0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_FFB2 = uuid16(0xFFB2) // notify frames
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_FFB1 = uuid16(0xFFB1) // write commands
 
-    // ---- Frame constants -----------------------------------------------------
+        // ---- Frame constants -----------------------------------------------------
 
-    private val MSG_LEN = 20
-    private val HDR_A  = 0xAB.toByte()
-    private val HDR_B  = 0x2A.toByte()
+        private const val MSG_LEN = 20
+        private const val HDR_A  = 0xAB.toByte()
+        private const val HDR_B  = 0x2A.toByte()
+    }
 
     // temp holder for the current final measurement (weight first, then impedance)
     private var pending: ScaleMeasurement? = null
@@ -173,20 +181,14 @@ class OneByoneNewHandler : ScaleDeviceHandler() {
     // ---- Body-comp population -------------------------------------------------
 
     private fun populateBodyComp(m: ScaleMeasurement, impedanceOhm: Int, u: ScaleUser) {
-        val gender = if (u.gender.isMale()) 1 else 0
+        val lib = OneByoneNewLib(u, m.weight, impedanceOhm.toFloat())
 
-        // The legacy driver used ConverterUtils.fromCentimeter(heightCm, user.measureUnit) here.
-        // We keep the same call to preserve parity with historical values expected by the vendor lib.
-        val heightForLib: Float =u.bodyHeight
-
-        val lib = OneByoneNewLib(gender, u.age, heightForLib, u.activityLevel.toInt())
-
-        m.fat         = lib.getBodyFatPercentage(m.weight, impedanceOhm)
-        m.water       = lib.getWaterPercentage(m.weight, impedanceOhm)
-        m.bone        = lib.getBoneMass(m.weight, impedanceOhm)
-        m.visceralFat = lib.getVisceralFat(m.weight)
-        m.muscle      = lib.getSkeletonMusclePercentage(m.weight, impedanceOhm)
-        m.lbm         = lib.getLBM(m.weight, impedanceOhm)
+        m.fat         = lib.bodyFatPercent
+        m.water       = lib.waterPercent
+        m.bone        = lib.boneMassKg
+        m.visceralFat = lib.visceralFatPercent
+        m.muscle      = lib.musclePercent
+        m.lbm         = lib.lbmKg
     }
 
     // ---- Outbound commands ----------------------------------------------------

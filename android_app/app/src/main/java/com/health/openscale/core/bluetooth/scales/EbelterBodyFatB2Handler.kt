@@ -25,14 +25,29 @@ import java.util.UUID
 
 class EbelterBodyFatB2Handler : ScaleDeviceHandler() {
 
-    // 16-bit UUIDs -> base UUID BLE
-    private val SERVICE_FAA0 = uuid16(0xFAA0)
-    private val CHAR_FAA1_WRITE = uuid16(0xFAA1)
-    private val CHAR_FAA2_NOTIFY = uuid16(0xFAA2)
+    private companion object {
+        // 16-bit UUIDs -> base UUID BLE
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE_FAA0 = uuid16(0xFAA0)
 
-    // Handshake (comandos que ya probaste en nRF y dieron grasa)
-    private val CMD1 = hex("ab0998fc121711180a2714")
-    private val CMD2 = hex("ab0e9906151442148bbc0aa611bd12e9ea")
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_FAA1_WRITE = uuid16(0xFAA1)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_FAA2_NOTIFY = uuid16(0xFAA2)
+
+        // Handshake (comandos que ya probaste en nRF y dieron grasa)
+        @JvmStatic
+        @JvmSynthetic
+        private val CMD1 = hexToBytes("ab0998fc121711180a2714")
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CMD2 = hexToBytes("ab0e9906151442148bbc0aa611bd12e9ea")
+    }
 
     // Evitar spamear handshake en cada frame
     private var lastHandshakeMs: Long = 0L
@@ -130,21 +145,5 @@ class EbelterBodyFatB2Handler : ScaleDeviceHandler() {
 
         writeTo(SERVICE_FAA0, CHAR_FAA1_WRITE, CMD1)
         writeTo(SERVICE_FAA0, CHAR_FAA1_WRITE, CMD2)
-    }
-
-    private fun u16le(b: ByteArray, offset: Int): Int {
-        val lo = b[offset].toInt() and 0xFF
-        val hi = b[offset + 1].toInt() and 0xFF
-        return (hi shl 8) or lo
-    }
-
-    private fun hex(s: String): ByteArray {
-        val clean = s.replace(" ", "").replace("-", "")
-        val out = ByteArray(clean.length / 2)
-        for (i in out.indices) {
-            val idx = i * 2
-            out[i] = clean.substring(idx, idx + 2).toInt(16).toByte()
-        }
-        return out
     }
 }

@@ -46,42 +46,123 @@ import kotlin.random.Random
  */
 open class StandardWeightProfileHandler : ScaleDeviceHandler() {
 
-    // ---- Standard services/characteristics (16-bit UUIDs) --------------------
-    private val SVC_DEVICE_INFO                = uuid16(0x180A)
-    private val CHR_MANUFACTURER_NAME          = uuid16(0x2A29)
-    private val CHR_MODEL_NUMBER               = uuid16(0x2A24)
+    private companion object {
+        // ---- Standard services/characteristics (16-bit UUIDs) --------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_DEVICE_INFO                = uuid16(0x180A)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_MANUFACTURER_NAME          = uuid16(0x2A29)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_MODEL_NUMBER               = uuid16(0x2A24)
 
-    private val SVC_CURRENT_TIME               = uuid16(0x1805)
-    private val CHR_CURRENT_TIME               = uuid16(0x2A2B)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_CURRENT_TIME               = uuid16(0x1805)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_CURRENT_TIME               = uuid16(0x2A2B)
 
-    private val SVC_WEIGHT_SCALE               = uuid16(0x181D)
-    private val CHR_WEIGHT_MEASUREMENT         = uuid16(0x2A9D)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_WEIGHT_SCALE               = uuid16(0x181D)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_WEIGHT_MEASUREMENT         = uuid16(0x2A9D)
 
-    private val SVC_BODY_COMPOSITION           = uuid16(0x181B)
-    private val CHR_BODY_COMPOSITION_MEAS      = uuid16(0x2A9C)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_BODY_COMPOSITION           = uuid16(0x181B)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_BODY_COMPOSITION_MEAS      = uuid16(0x2A9C)
 
-    private val SVC_USER_DATA                  = uuid16(0x181C)
-    private val CHR_DATABASE_CHANGE_INCREMENT  = uuid16(0x2A99) // NOTIFY/READ/WRITE
-    protected val CHR_USER_CONTROL_POINT         = uuid16(0x2A9F) // Indication
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_USER_DATA                  = uuid16(0x181C)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_DATABASE_CHANGE_INCREMENT  = uuid16(0x2A99) // NOTIFY/READ/WRITE
+        @JvmStatic
+        @JvmSynthetic
+        protected val CHR_USER_CONTROL_POINT         = uuid16(0x2A9F) // Indication
 
-    // UDS user attributes
-    private val CHR_USER_DATE_OF_BIRTH         = uuid16(0x2A85) // Year-Month-Day
-    private val CHR_USER_GENDER                = uuid16(0x2A8C) // 0=male, 1=female
-    private val CHR_USER_HEIGHT                = uuid16(0x2A8E) // centimeters
+        // UDS user attributes
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_DATE_OF_BIRTH         = uuid16(0x2A85) // Year-Month-Day
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_GENDER                = uuid16(0x2A8C) // 0=male, 1=female
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_HEIGHT                = uuid16(0x2A8E) // centimeters
 
-    private val SVC_BATTERY                    = uuid16(0x180F)
-    private val CHR_BATTERY_LEVEL              = uuid16(0x2A19)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_BATTERY                    = uuid16(0x180F)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_BATTERY_LEVEL              = uuid16(0x2A19)
 
-    // ---- UDS Control Point opcodes -------------------------------------------
-    private val UDS_CP_REGISTER_NEW_USER       = 0x01
-    private val UDS_CP_CONSENT                 = 0x02
-    private val UDS_CP_LIST_ALL_USERS          = 0x04
-    private val UDS_CP_RESPONSE                = 0x20
+        // ---- UDS Control Point opcodes -------------------------------------------
+        private const val UDS_CP_REGISTER_NEW_USER       = 0x01
+        private const val UDS_CP_CONSENT                 = 0x02
+        private const val UDS_CP_LIST_ALL_USERS          = 0x04
+        private const val UDS_CP_RESPONSE                = 0x20
 
-    // UDS response values
-    private val UDS_CP_RESP_VALUE_SUCCESS          = 0x01
-    private val UDS_CP_RESP_OPERATION_FAILED       = 0x04
-    private val UDS_CP_RESP_USER_NOT_AUTHORIZED    = 0x05
+        // UDS response values
+        private const val UDS_CP_RESP_VALUE_SUCCESS          = 0x01
+        private const val UDS_CP_RESP_OPERATION_FAILED       = 0x04
+        private const val UDS_CP_RESP_USER_NOT_AUTHORIZED    = 0x05
+
+        // ---- Helpers --------------------------------------------------------------
+        @JvmStatic
+        private fun randomConsent(): Int = Random.nextInt(0, 10_000)
+
+        @JvmStatic
+        private fun buildCurrentTimePayload(now: Date = Date()): ByteArray {
+            val cal = Calendar.getInstance().apply { time = now }
+            val year = cal.get(Calendar.YEAR)
+            val month = cal.get(Calendar.MONTH) + 1
+            val day = cal.get(Calendar.DAY_OF_MONTH)
+            val hour = cal.get(Calendar.HOUR_OF_DAY)
+            val minute = cal.get(Calendar.MINUTE)
+            val second = cal.get(Calendar.SECOND)
+            val dayOfWeek = ((cal.get(Calendar.DAY_OF_WEEK) + 5) % 7) + 1 // 1=Mon…7=Sun
+
+            return byteArrayOf(
+                (year and 0xFF).toByte(), ((year shr 8) and 0xFF).toByte(),
+                month.toByte(),
+                day.toByte(),
+                hour.toByte(),
+                minute.toByte(),
+                second.toByte(),
+                dayOfWeek.toByte(),
+                0x00, // Fractions256
+                0x00  // AdjustReason
+            )
+        }
+
+        @JvmStatic
+        private fun u8(b: ByteArray, off: Int): Int = b[off].toInt() and 0xFF
+
+        @JvmStatic
+        private fun ByteArray.toHex(): String {
+            if (isEmpty()) return "[]"
+            val show = min(size, 64)
+            val sb = StringBuilder("[")
+            for (i in 0 until show) {
+                if (i > 0) sb.append(' ')
+                sb.append(String.format("%02X", this[i]))
+            }
+            if (size > show) sb.append(" …(+").append(size - show).append("b)")
+            sb.append(']')
+            return sb.toString()
+        }
+    }
 
     // ---- Internal state -------------------------------------------------------
     private var pendingMeasurement: ScaleMeasurement? = null
@@ -799,49 +880,5 @@ open class StandardWeightProfileHandler : ScaleDeviceHandler() {
             if (loadUserIdForScaleIndex(idx) == appUserId) return idx
         }
         return null
-    }
-
-    // ---- Helpers --------------------------------------------------------------
-
-    private fun randomConsent(): Int = Random.nextInt(0, 10_000)
-
-    private fun buildCurrentTimePayload(now: Date = Date()): ByteArray {
-        val cal = Calendar.getInstance().apply { time = now }
-        val year = cal.get(Calendar.YEAR)
-        val month = cal.get(Calendar.MONTH) + 1
-        val day = cal.get(Calendar.DAY_OF_MONTH)
-        val hour = cal.get(Calendar.HOUR_OF_DAY)
-        val minute = cal.get(Calendar.MINUTE)
-        val second = cal.get(Calendar.SECOND)
-        val dayOfWeek = ((cal.get(Calendar.DAY_OF_WEEK) + 5) % 7) + 1 // 1=Mon…7=Sun
-
-        return byteArrayOf(
-            (year and 0xFF).toByte(), ((year shr 8) and 0xFF).toByte(),
-            month.toByte(),
-            day.toByte(),
-            hour.toByte(),
-            minute.toByte(),
-            second.toByte(),
-            dayOfWeek.toByte(),
-            0x00, // Fractions256
-            0x00  // AdjustReason
-        )
-    }
-
-    private fun u8(b: ByteArray, off: Int): Int = b[off].toInt() and 0xFF
-    private fun u16le(b: ByteArray, off: Int): Int =
-        (b[off].toInt() and 0xFF) or ((b[off + 1].toInt() and 0xFF) shl 8)
-
-    private fun ByteArray.toHex(): String {
-        if (isEmpty()) return "[]"
-        val show = min(size, 64)
-        val sb = StringBuilder("[")
-        for (i in 0 until show) {
-            if (i > 0) sb.append(' ')
-            sb.append(String.format("%02X", this[i]))
-        }
-        if (size > show) sb.append(" …(+").append(size - show).append("b)")
-        sb.append(']')
-        return sb.toString()
     }
 }

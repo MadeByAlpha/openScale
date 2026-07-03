@@ -46,11 +46,17 @@ import java.util.UUID
 class RunstarR5Handler : ScaleDeviceHandler() {
     companion object {
         private const val WEIGHT_RAW_BASE = 0x680000
-    }
 
-    private val service = uuid16(0xFFB0)
-    private val writeCharacteristic = uuid16(0xFFB1)
-    private val notifyCharacteristic = uuid16(0xFFB2)
+        @JvmStatic
+        @JvmSynthetic
+        private val service = uuid16(0xFFB0)
+        @JvmStatic
+        @JvmSynthetic
+        private val writeCharacteristic = uuid16(0xFFB1)
+        @JvmStatic
+        @JvmSynthetic
+        private val notifyCharacteristic = uuid16(0xFFB2)
+    }
 
     private var lastPublishedWeightRaw: Int? = null
     private var lastPreviewWeightKg = -1f

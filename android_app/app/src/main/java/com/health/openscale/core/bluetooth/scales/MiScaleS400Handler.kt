@@ -87,6 +87,8 @@ class MiScaleS400Handler : ScaleDeviceHandler() {
         // Known S400 device name patterns
         // The S400 may advertise with various names depending on firmware/region
         // Format seen in practice: "Xiaomi Scale S400 XXXX" where XXXX is last 4 of MAC
+        @JvmStatic
+        @JvmSynthetic
         private val KNOWN_NAME_PATTERNS = listOf(
             "SCALE S400",                  // Core pattern - matches "Xiaomi Scale S400 8E8B"
             "XMTZC14HM",                   // S400 model identifier (raw BLE name)
@@ -94,6 +96,8 @@ class MiScaleS400Handler : ScaleDeviceHandler() {
         )
 
         // S400 Service UUID (Xiaomi Body Composition service)
+        @JvmStatic
+        @JvmSynthetic
         private val SERVICE_UUID_S400 = ParcelUuid.fromString("0000181b-0000-1000-8000-00805f9b34fb")
     }
 

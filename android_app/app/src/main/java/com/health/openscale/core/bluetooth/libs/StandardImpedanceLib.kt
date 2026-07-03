@@ -17,7 +17,8 @@
  */
 package com.health.openscale.core.bluetooth.libs
 
-import com.health.openscale.core.data.GenderType
+import com.health.openscale.core.bluetooth.data.ScaleUser
+
 
 /**
  * This provides as far as possible science-based algorithms which are as far as possible based on impedance.
@@ -52,17 +53,12 @@ import com.health.openscale.core.data.GenderType
  * track how well in shape you are.
  * However, if your scale reports an impedance of e.g. 250 or 800 then better don't use this class.
  */
-data class StandardImpedanceLib(
-    val gender: GenderType,
-    val age: Int,
-    val weightKg: Double,
-    val heightM: Double,
-    val impedance: Double,
-) {
-    val isMale = gender == GenderType.MALE
-    val genderInt = if (isMale) 1 else 0
-
-    val heightCm = heightM * 100.0
+@Suppress("detekt:MagicNumber")
+class StandardImpedanceLib(
+    user: ScaleUser,
+    weightKg: Float,
+    impedance: Float
+) : ImpedanceLib(user, weightKg, impedance) {
 
     /**
      * Reusable constant for H_cm^2 / R which appears in several impedance-based formulas.
@@ -70,24 +66,21 @@ data class StandardImpedanceLib(
     val h2rCoeff = heightCm * heightCm / impedance
 
     /**
-     * BMI using standard formula.
-     */
-    val bmi: Double = weightKg / (heightM * heightM)
-
-    /**
      * FFM / fat-free mass according to Sun SS et al. (2003).
      *
      * https://www.researchgate.net/publication/10940351_Sun_SS_Chumlea_WC_Heymsfield_SB_Lukaski_HC_Schoeller_D_Friedl_K_Kuczmarski_RJ_Flegal_KM_Johnson_CL_Hubbard_VSDevelopment_of_bioelectrical_impedance_analysis_prediction_equations_for_body_composition_w
      */
-    val fatFreeMassKg: Double by lazy {
+    override val lbmKg: Float by lazy {
         if (isMale) {
-            -10.68 + 0.65 * h2rCoeff + 0.26 * weightKg + 0.02 * impedance
+            -10.68f + 0.65f * h2rCoeff + 0.26f * weightKg + 0.02f * impedance
         } else {
-            -9.53 + 0.69 * h2rCoeff + 0.17 * weightKg + 0.02 * impedance
+            -9.53f + 0.69f * h2rCoeff + 0.17f * weightKg + 0.02f * impedance
         }
     }
+    override val bcmKg: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 
-    val totalFatPercentage: Double = (1.0 - fatFreeMassKg / weightKg) * 100.0
+    override val bodyFatPercent: Float = (1f - lbmKg / weightKg) * 100f
 
     /**
      * TBW / total body water according to Sun SS et al. (2003).
@@ -96,38 +89,38 @@ data class StandardImpedanceLib(
      *
      * TODO: For children we might want to use the Mellits-Cheek formula.
      */
-    val totalBodyWaterKg: Double by lazy {
-        val liters = if (isMale) 1.2 + 0.45 * h2rCoeff + 0.18 * weightKg else 3.75 + 0.45 * h2rCoeff + 0.11 * weightKg
+    val waterKg: Float by lazy {
+        val liters =
+            if (isMale) 1.2f + 0.45f * h2rCoeff + 0.18f * weightKg
+            else 3.75f + 0.45f * h2rCoeff + 0.11f * weightKg
+
         // Convert liters to kg at an average 36.5°C water temperature across the whole body
-        0.99513 * liters
+        0.99513f * liters
     }
 
-    val totalBodyWaterPercentage: Double by lazy {
-        (totalBodyWaterKg / weightKg) * 100.0
-    }
+    override val waterPercent: Float by lazy { waterKg.percent }
+    override val proteinPercent: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 
     /**
      * BMR / basal metabolic rate according to Katch-McArdle.
      *
      * TODO: For women we might have to distinguish by age: https://www.mdpi.com/2072-6643/13/2/345
      */
-    val basalMetabolicRate: Double = fatFreeMassKg * 21.6 + 370
+    override val bmrKcal: Float = lbmKg * 21.6f + 370f
 
     /**
      * Skeletal Muscle Mass (%) according to Janssen et al.
      *
      * Not to be confused with the total muscle mass.
      */
-    val skeletalMuscleMassKg: Double by lazy {
-        0.401 * h2rCoeff + 3.825 * genderInt - 0.071 * age + 5.102
+    val muscleMassKg: Float by lazy {
+        0.401f * h2rCoeff + 3.825f * male - 0.071f * age + 5.102f
     }
 
-    val skeletalMusclePercentage: Double by lazy {
-        (skeletalMuscleMassKg / weightKg) * 100.0
-    }
+    override val musclePercent: Float by lazy { muscleMassKg.percent }
+    override val visceralFatPercent: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 
-    val boneMassKg: Double by lazy {
-        val factor = if (isMale) 0.057 else 0.05
-        factor * fatFreeMassKg
-    }
+    override val boneMassKg: Float by lazy { (if (isMale) 0.057f else 0.05f) * lbmKg }
 }

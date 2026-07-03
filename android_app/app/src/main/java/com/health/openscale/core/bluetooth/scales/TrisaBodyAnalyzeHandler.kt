@@ -25,6 +25,8 @@ import com.health.openscale.core.service.ScannedDeviceInfo
 import com.health.openscale.core.utils.ConverterUtils
 import java.util.Date
 import java.util.UUID
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
 /**
  * TrisaBodyAnalyzeHandler
@@ -62,27 +64,6 @@ class TrisaBodyAnalyzeHandler : ScaleDeviceHandler() {
             )
         } else null
     }
-
-    // --- UUIDs (Bluetooth Base UUID, 16-bit short codes) ---------------------
-
-    private val SVC_WEIGHT = uuid16(0x7802)
-    private val CHR_MEAS   = uuid16(0x8A21)
-    private val CHR_DNLD   = uuid16(0x8A81) // host → device
-    private val CHR_UPLD   = uuid16(0x8A82) // device → host
-
-    // --- Opcodes --------------------------------------------------------------
-
-    private val UPLOAD_PASSWORD: Byte   = 0xA0.toByte()
-    private val UPLOAD_CHALLENGE: Byte  = 0xA1.toByte()
-
-    private val CMD_DOWNLOAD_INFORMATION_UTC: Byte           = 0x02
-    private val CMD_DOWNLOAD_INFORMATION_RESULT: Byte         = 0x20
-    private val CMD_DOWNLOAD_INFORMATION_BROADCAST_ID: Byte   = 0x21
-
-    private val BROADCAST_ID = 0 // required to complete pairing; value seems arbitrary
-
-    // Timestamp reference (2010-01-01 00:00:00 UTC)
-    private val TIMESTAMP_OFFSET_SECONDS = 1262304000L
 
     // Pairing state
     private var pairing = false
@@ -200,12 +181,11 @@ class TrisaBodyAnalyzeHandler : ScaleDeviceHandler() {
         if (hasR2 && r2Offset + 4 <= data.size && isValidUser(user)) {
             val resistance2 = getBase10Float(data, r2Offset)
             val impedance = if (resistance2 < 410f) 3.0f else 0.3f * (resistance2 - 400f)
-            val sexFlag = if (user!!.gender.isMale()) 1 else 0
-            val lib = TrisaBodyAnalyzeLib(sexFlag, user.age, user.bodyHeight)
-            measurement.fat = lib.getFat(weightKg, impedance)
-            measurement.water = lib.getWater(weightKg, impedance)
-            measurement.muscle = lib.getMuscle(weightKg, impedance)
-            measurement.bone = lib.getBone(weightKg, impedance)
+            val lib = TrisaBodyAnalyzeLib(user, weightKg, impedance)
+            measurement.fat = lib.bodyFatPercent
+            measurement.water = lib.waterPercent
+            measurement.muscle = lib.musclePercent
+            measurement.bone = lib.boneMassKg
             // Store the raw resistance so body composition can be recomputed later.
             measurement.impedance = resistance2.toDouble()
         }
@@ -221,22 +201,62 @@ class TrisaBodyAnalyzeHandler : ScaleDeviceHandler() {
         writeTo(SVC_WEIGHT, CHR_DNLD, bytes, withResponse = true)
     }
 
-    // --- Utility --------------------------------------------------------------
+    private companion object {
+        // --- UUIDs (Bluetooth Base UUID, 16-bit short codes) ---------------------
 
-    private fun getBase10Float(data: ByteArray, offset: Int): Float {
-        val mantissa = ConverterUtils.fromUnsignedInt24Le(data, offset)
-        val exponent = data[offset + 3].toInt() // signed
-        return (mantissa * Math.pow(10.0, exponent.toDouble())).toFloat()
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_WEIGHT = uuid16(0x7802)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_MEAS   = uuid16(0x8A21)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_DNLD   = uuid16(0x8A81) // host → device
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_UPLD   = uuid16(0x8A82) // device → host
+
+        // --- Opcodes --------------------------------------------------------------
+
+        private const val UPLOAD_PASSWORD: Byte   = 0xA0.toByte()
+        private const val UPLOAD_CHALLENGE: Byte  = 0xA1.toByte()
+
+        private const val CMD_DOWNLOAD_INFORMATION_UTC: Byte           = 0x02
+        private const val CMD_DOWNLOAD_INFORMATION_RESULT: Byte         = 0x20
+        private const val CMD_DOWNLOAD_INFORMATION_BROADCAST_ID: Byte   = 0x21
+
+        private const val BROADCAST_ID = 0 // required to complete pairing; value seems arbitrary
+
+        // Timestamp reference (2010-01-01 00:00:00 UTC)
+        private const val TIMESTAMP_OFFSET_SECONDS = 1262304000L
+
+        // --- Utility --------------------------------------------------------------
+        @JvmStatic
+        private fun getBase10Float(data: ByteArray, offset: Int): Float {
+            val mantissa = ConverterUtils.fromUnsignedInt24Le(data, offset)
+            val exponent = data[offset + 3].toInt() // signed
+            return (mantissa * Math.pow(10.0, exponent.toDouble())).toFloat()
+        }
+
+        @JvmStatic
+        private fun convertJavaTimestampToDevice(javaMillis: Long): Int {
+            return (((javaMillis + 500) / 1000) - TIMESTAMP_OFFSET_SECONDS).toInt()
+        }
+
+        @JvmStatic
+        private fun convertDeviceTimestampToJava(deviceSeconds: Int): Long {
+            return 1000L * (TIMESTAMP_OFFSET_SECONDS + deviceSeconds.toLong())
+        }
+
+        @JvmStatic
+        @OptIn(ExperimentalContracts::class)
+        private fun isValidUser(user: ScaleUser?): Boolean {
+            contract {
+                returns(true) implies (user != null)
+            }
+
+            return user != null && user.age > 0 && user.bodyHeight > 0
+        }
     }
-
-    private fun convertJavaTimestampToDevice(javaMillis: Long): Int {
-        return (((javaMillis + 500) / 1000) - TIMESTAMP_OFFSET_SECONDS).toInt()
-    }
-
-    private fun convertDeviceTimestampToJava(deviceSeconds: Int): Long {
-        return 1000L * (TIMESTAMP_OFFSET_SECONDS + deviceSeconds.toLong())
-    }
-
-    private fun isValidUser(user: ScaleUser?): Boolean =
-        user != null && user.age > 0 && user.bodyHeight > 0
 }

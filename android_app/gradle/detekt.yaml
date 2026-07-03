@@ -1,0 +1,17 @@
+complexity:
+  TooManyFunctions:
+    active: false
+style:
+  MagicNumber:
+    active: false
+formatting:
+  Indentation:
+    active: false
+  Wrapping:
+    active: false
+  MultiLineIfElse:
+    active: false
+  NoBlankLineBeforeRbrace:
+    active: false
+  NoMultipleSpaces:
+    active: false

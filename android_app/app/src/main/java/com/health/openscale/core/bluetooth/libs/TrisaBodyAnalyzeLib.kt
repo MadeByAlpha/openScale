@@ -18,61 +18,40 @@
  */
 package com.health.openscale.core.bluetooth.libs
 
+import com.health.openscale.core.bluetooth.data.ScaleUser
+
+
 /**
  * Class with static helper methods. This is a separate class for testing purposes.
  */
-class TrisaBodyAnalyzeLib(sex: Int, private val ageYears: Int, private val heightCm: Float) {
-    private val isMale: Boolean
+@Suppress("detekt:MagicNumber")
+class TrisaBodyAnalyzeLib(user: ScaleUser, weightKg: Float, impedance: Float) :
+    ImpedanceLib(user, weightKg, impedance) {
+    val bmi: Float = weightKg * 1E4f / (heightCm * heightCm)
 
-    init {
-        isMale = if (sex == 1) true else false // male = 1; female = 0
-    }
+    override val waterPercent: Float =
+        if (isMale) 87.51f + (-1.162f * bmi - 0.00813f * impedance + 0.07594f * age)
+        else 77.721f + (-1.148f * bmi - 0.00573f * impedance + 0.06448f * age)
+    override val proteinPercent: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 
-    fun getBMI(weightKg: Float): Float {
-        return weightKg * 1e4f / (heightCm * heightCm)
-    }
+    override val bodyFatPercent: Float =
+        if (isMale) bmi * (1.479f + 4.4e-4f * impedance) + 0.1f * age - 21.764f
+        else bmi * (1.506f + 3.908e-4f * impedance) + 0.1f * age - 12.834f
 
-    fun getWater(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
+    override val musclePercent: Float =
+        if (isMale) 74.627f + (-0.811f * bmi - 0.00565f * impedance - 0.367f * age)
+        else 57.0f + (-0.694f * bmi - 0.00344f * impedance - 0.255f * age)
+    override val visceralFatPercent: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 
-        val water = if (isMale)
-            87.51f + (-1.162f * bmi - 0.00813f * impedance + 0.07594f * ageYears)
-        else
-            77.721f + (-1.148f * bmi - 0.00573f * impedance + 0.06448f * ageYears)
-
-        return water
-    }
-
-    fun getFat(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
-
-        val fat = if (isMale)
-            bmi * (1.479f + 4.4e-4f * impedance) + 0.1f * ageYears - 21.764f
-        else
-            bmi * (1.506f + 3.908e-4f * impedance) + 0.1f * ageYears - 12.834f
-
-        return fat
-    }
-
-    fun getMuscle(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
-
-        val muscle = if (isMale)
-            74.627f + (-0.811f * bmi - 0.00565f * impedance - 0.367f * ageYears)
-        else
-            57.0f + (-0.694f * bmi - 0.00344f * impedance - 0.255f * ageYears)
-
-        return muscle
-    }
-
-    fun getBone(weightKg: Float, impedance: Float): Float {
-        val bmi = getBMI(weightKg)
-
-        val bone = if (isMale)
-            7.829f + (-0.0855f * bmi - 5.92e-4f * impedance - 0.0389f * ageYears)
-        else
-            7.98f + (-0.0973f * bmi - 4.84e-4f * impedance - 0.036f * ageYears)
-
-        return bone
-    }
+    override val boneMassKg: Float =
+        if (isMale) 7.829f + (-0.0855f * bmi - 5.92e-4f * impedance - 0.0389f * age)
+        else 7.98f + (-0.0973f * bmi - 4.84e-4f * impedance - 0.036f * age)
+    override val lbmKg: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+    override val bcmKg: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+    override val bmrKcal: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 }

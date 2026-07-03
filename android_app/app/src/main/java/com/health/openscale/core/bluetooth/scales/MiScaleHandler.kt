@@ -51,25 +51,43 @@ import java.util.UUID
  */
 class MiScaleHandler : ScaleDeviceHandler() {
 
+    private companion object {
+        // GATT UUIDs
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE_BODY_COMP = uuid16(0x181B)
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE_WEIGHT    = uuid16(0x181D)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CURRENT_TIME = uuid16(0x2A2B)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_WEIGHT_MEAS  = uuid16(0x2A9D) // usually absent on Mi
+
+        // Mi vendor service (v2 only)
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE_MI_CFG    = UUID.fromString("00001530-0000-3512-2118-0009af100700")
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_MI_CONFIG    = UUID.fromString("00001542-0000-3512-2118-0009af100700")
+
+        // Mi history stream (notify + control)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_MI_HISTORY   = UUID.fromString("00002a2f-0000-3512-2118-0009af100700")
+
+        // Protocol constants
+        @JvmStatic
+        @JvmSynthetic
+        private val ENABLE_HISTORY_MAGIC = byteArrayOf(0x01, 0x96.toByte(), 0x8A.toByte(), 0xBD.toByte(), 0x62)
+    }
+
     // ----- Variant detection -----
     private enum class Variant { V1, V2 }
     private var variant: Variant = Variant.V1
-
-    // GATT UUIDs
-    private val SERVICE_BODY_COMP = uuid16(0x181B)
-    private val SERVICE_WEIGHT    = uuid16(0x181D)
-    private val CHAR_CURRENT_TIME = uuid16(0x2A2B)
-    private val CHAR_WEIGHT_MEAS  = uuid16(0x2A9D) // usually absent on Mi
-
-    // Mi vendor service (v2 only)
-    private val SERVICE_MI_CFG    = UUID.fromString("00001530-0000-3512-2118-0009af100700")
-    private val CHAR_MI_CONFIG    = UUID.fromString("00001542-0000-3512-2118-0009af100700")
-
-    // Mi history stream (notify + control)
-    private val CHAR_MI_HISTORY   = UUID.fromString("00002a2f-0000-3512-2118-0009af100700")
-
-    // Protocol constants
-    private val ENABLE_HISTORY_MAGIC = byteArrayOf(0x01, 0x96.toByte(), 0x8A.toByte(), 0xBD.toByte(), 0x62)
 
     // Session state
     private val histBuf = java.io.ByteArrayOutputStream()
@@ -350,14 +368,13 @@ class MiScaleHandler : ScaleDeviceHandler() {
             if (imp > 0) {
                 // Store the raw impedance so body composition can be recomputed later.
                 m.impedance = imp.toDouble()
-                val sex = if (user.gender == GenderType.MALE) 1 else 0
-                val lib = MiScaleLib(sex, user.age, user.bodyHeight)
-                m.water       = lib.getWater(m.weight, imp.toFloat())
-                m.visceralFat = lib.getVisceralFat(m.weight)
-                m.fat         = lib.getBodyFat(m.weight, imp.toFloat())
-                m.muscle      = lib.getMuscle(m.weight, imp.toFloat())
-                m.lbm         = lib.getLBM(m.weight, imp.toFloat())
-                m.bone        = lib.getBoneMass(m.weight, imp.toFloat())
+                val lib = MiScaleLib(user, m.weight, imp.toFloat())
+                m.water       = lib.waterPercent
+                m.visceralFat = lib.visceralFatPercent
+                m.fat         = lib.bodyFatPercent
+                m.muscle      = lib.musclePercent
+                m.lbm         = lib.lbmKg
+                m.bone        = lib.boneMassKg
             }
         }
 

@@ -43,9 +43,19 @@ import kotlin.math.abs
  */
 class DigooDGSO38HHandler : ScaleDeviceHandler() {
 
-    private val SVC get() = uuid16(0xFFF0)
-    private val CHR_MEAS get() = uuid16(0xFFF1) // notify
-    private val CHR_EXTRA get() = uuid16(0xFFF2) // write
+    private companion object {
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC = uuid16(0xFFF0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_MEAS = uuid16(0xFFF1) // notify
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_EXTRA = uuid16(0xFFF2) // write
+    }
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name

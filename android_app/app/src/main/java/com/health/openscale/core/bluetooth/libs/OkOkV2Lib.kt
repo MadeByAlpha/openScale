@@ -1,151 +1,113 @@
 /**
- * Based on https://github.com/Alchives/reverse-engineering/tree/okok-c0/com.leaone.btcontrol.en?
+ * Based on https://github.com/Alchives/reverse-engineering/tree/okok-c0/com.leaone.btcontrol.en
  */
 package com.health.openscale.core.bluetooth.libs
 
-import kotlin.math.*
+import com.health.openscale.core.bluetooth.data.ScaleUser
+import kotlin.math.pow
 
 
-class OkOkV2Lib(
-    private val age: Int,
-    private val sex: Int,
-    private val height: Float
-) {
+@Suppress("detekt:MagicNumber")
+class OkOkV2Lib(user: ScaleUser, weightKt: Float, impedance: Float) :
+    ImpedanceLib(user, weightKt, impedance) {
 
-    private companion object {
-        private const val MALE = 1
-    }
-
-    fun getLBM(weight: Float, impedance: Float) =
-        weight - getFatMass(weight, impedance)
-
-    fun getMuscle(weight: Float, impedance: Float): Float = min(20f, max(
-        (height * 0.2573f) + (weight * 0.1745f) - (age * 0.0161f) + (sex * 2.4269f) - (impedance * 0.017f) - 20.2165f,
-        70f
-    )).let { smm -> smm * 100f / weight }
-
-    private fun getMuscleMass(weight: Float, impedance: Float): Float {
-        val bodyFat = getBodyFat(weight, impedance)
-
-        if (bodyFat > 45f) return (weight - (weight * 0.05f)) - 4f
-        else if (bodyFat < 5f) return (weight - (weight * 0.05f)) - 1f
+    val muscleMassKg: Float by lazy {
+        if (bodyFatPercent > 45f) return@lazy (weightKg - (weightKg * 0.05f)) - 4f
+        else if (bodyFatPercent < 5f) return@lazy (weightKg - (weightKg * 0.05f)) - 1f
 
         val raw =
-            if (sex == MALE) (height * 0.2867f) + (weight * 0.3894f) - (age * 0.0408f) - (impedance * 0.01235f) - 15.7665f
-            else (height * 0.3186f) + (weight * 0.1934f) - (age * 0.0206f) - (impedance * 0.0132f) - 16.4556f
-        return min(20f, max(raw, 70f))
+            if (isMale) (heightCm * 0.2867f) + (weightKg * 0.3894f) - (age * 0.0408f) - (impedance * 0.01235f) - 15.7665f
+            else (heightCm * 0.3186f) + (weightKg * 0.1934f) - (age * 0.0206f) - (impedance * 0.0132f) - 16.4556f
+        raw.coerceIn(20f, 70f)
     }
 
-    fun getWater(weight: Float, impedance: Float): Float {
-        if (age <= 17) return 0f
-
-        val kg =
-            if (sex == MALE) (height * 0.0939f) + (weight * 0.3758f) - (age * 0.0032f) - (impedance * 6.925E-3f) + 0.097f
-            else (height * 0.0877f) + (weight * 0.2973f) - (age * 0.0128f) - (impedance * 0.00603f) + 0.5175f
-
-        return min(20f, max(kg / weight * 100f, 85f))
+    override val musclePercent: Float by lazy {
+        var smm = (heightCm * 0.2573f) + (weightKg * 0.1745f) - (age * 0.0161f) - (impedance * 0.017f) - 20.2165f
+        if (isMale) smm += 2.4269f
+        smm.coerceIn(20f, 70f).percent
     }
 
-    fun getWaterMass(weight: Float, impedance: Float): Float {
-        if (age <= 17) return 0f
-        return (getWater(weight, impedance) / 100f) * weight
+    override val visceralFatPercent: Float by lazy {
+        val visceral =
+            if (isMale) (heightCm * -0.2675f) + (weightKg * 0.42f) + (age * 0.1462f) + (impedance * 0.0123f) + 13.9871f
+            else (heightCm * -0.1651f) + (weightKg * 0.2628f) + (age * 0.0649f) + (impedance * 0.0024f) + 12.3445f
+        visceral.coerceIn(1f, 59f)
     }
 
-    fun getBoneMass(weight: Float, impedance: Float): Float {
-        val fm = weight - getFatMass(weight, impedance) - getMuscleMass(weight, impedance)
-        return min(1f, max(fm, 4f))
-    }
+    val bodyFatMassKg: Float =
+        if (isMale) (heightCm * -0.3315f) + (weightKg * 0.6216f) + (age * 0.0183f) + (impedance * 0.0085f) + 22.554f
+        else (heightCm * -0.3332f) + (weightKg * 0.7509f) + (age * 0.0196f) + (impedance * 0.0072f) + 22.7193f
 
-    fun getVisceralFat(weight: Float, impedance: Float): Float {
-        if (age <= 17) return 0f
-        val f =
-            if (sex == MALE) (height * -0.2675f) + (weight * 0.42f) + (age * 0.1462f) + (impedance * 0.0123f) + 13.9871f
-            else (height * -0.1651f) + (weight * 0.2628f) + (age * 0.0649f) + (impedance * 0.0024f) + 12.3445f
-        return min(1f, max(f, 60f))
-    }
+    override val bodyFatPercent: Float = bodyFatMassKg.percent.coerceIn(5f, 45f)
 
-    private fun getFatMass(weight: Float, impedance: Float): Float =
-        if (sex == MALE) (height * -0.3315f) + (weight * 0.6216f) + (age * 0.0183f) + (impedance * 0.0085f) + 22.554f
-        else (height * -0.3332f) + (weight * 0.7509f) + (age * 0.0196f) + (impedance * 0.0072f) + 22.7193f
+    val waterMassKg: Float =
+        if (isMale) (heightCm * 0.0939f) + (weightKg * 0.3758f) - (age * 0.0032f) - (impedance * 0.006925f) + 0.097f
+        else (heightCm * 0.0877f) + (weightKg * 0.2973f) - (age * 0.0128f) - (impedance * 0.00603f) + 0.5175f
 
-    fun getBodyFat(weight: Float, impedance: Float): Float =
-        min(5f, max(getFatMass(weight, impedance) / weight * 100f, 45f))
+    override val waterPercent: Float = waterMassKg.percent.coerceIn(20f, 85f)
 
-    fun getBMR(weight: Float): Float =
-        if (sex == MALE) 66f + (weight * 13.7f) + (height * 5f) - (age * 6.8f)
-        else 655f + (weight * 9.6f) + (height * 1.8f) - (age * 4.7f)
+    val proteinMassKg: Float = muscleMassKg - waterMassKg
 
-    fun getProtein(weight: Float, impedance: Float): Float =
-        if (age <= 17) 0f else (getMuscleMass(weight, impedance) - getWaterMass(weight, impedance)) / weight * 100f
+    override val proteinPercent: Float = proteinMassKg.percent
+
+    override val boneMassKg: Float = (weightKg - bodyFatMassKg - muscleMassKg).coerceIn(1f, 4f)
+
+    override val lbmKg: Float = weightKg - bodyFatMassKg
+
+    override val bcmKg: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+
+    override val bmrKcal: Float =
+        if (isMale) 66f + (weightKg * 13.7f) + (heightCm * 5f) - (age * 6.8f)
+        else 655f + (weightKg * 9.6f) + (heightCm * 1.8f) - (age * 4.7f)
 
     // Copied from original implementation
     // I don't know what the heck this formula supposed to calculate
-    fun getScore(weight: Float, impedance: Float): Float {
-        if (age <= 17) return 0f
+    val score: Float by lazy {
+        val bodyFat = bodyFatPercent
+        val muscle = muscleMassKg
+        val visceral = visceralFatPercent
 
-        val bodyFat = getBodyFat(weight, impedance)
-        val muscleMass = getMuscleMass(weight, impedance)
-        val viscera = getVisceralFat(weight, impedance)
-
-        val var1 = ((weight / (height * height)) * 10000f).let {
-            min(55f, max((((it * it) * -5.686f) + (it * 241.7f)) - 2470f, 96f))
-        } * (if (viscera == 0f) 0.48f else 0.4f)
+        val var1 = (weightKg * 1E4f / (heightCm * heightCm))
+            .let { ((it * 241.7f) - (it * it * 5.686f) - 2470f).coerceIn(55f, 96f) }
+            .let { if (visceral == 0f) it * 0.48f else it * 0.4f }
 
         val var2: Float
         val var3: Float
         val i = bodyFat + (age * 0.03f)
-        if (sex == MALE) {
-            var2 = min(
+        if (isMale) {
+            var2 = minOf(
                 55f,
-                0.4248f + (i * 10.85f) - (i.pow(2) * 0.2952f) - (i.pow(3) * 3.181E-3f) + (i.pow(4) * 1.085E-4f)
+                0.4248f + (i * 10.85f) - (i.pow(2) * 0.2952f) - (i.pow(3) * 0.003181f) + (i.pow(4) * 1.085E-4f)
             )
-            var3 = max(muscleMass + 90f - (weight * 0.77f), 100f)
+            var3 = maxOf(muscle + 90f - (weightKg * 0.77f), 100f)
         } else {
-            var2 = min(
+            var2 = minOf(
                 55f,
                 80.42f - (i * 10.02f) + (i.pow(2) * 0.9597f) - (i.pow(3) * 0.02788f) + (i.pow(4) * 2.469E-4f)
             )
-            var3 = max(muscleMass + 90f - (weight * 0.735f), 100f)
+            var3 = maxOf(muscle + 90f - (weightKg * 0.735f), 100f)
         }
 
         val var4 =
-            if (viscera == 0f) 0f
-            else if (viscera >= 15f) -4f
-            else min(-50f, 89.35f
-                    + (viscera * 30.38f)
-                    + (viscera.pow(2) * -22.27f)
-                    + (viscera.pow(3) * 3.912f)
-                    + (viscera.pow(4) * -0.2825f)
-                    + (viscera.pow(5) * 7.212E-3f)) * 0.08f
+            if (visceral == 0f) 0f
+            else if (visceral >= 15f) -4f
+            else minOf(-50f, 89.35f
+                    + (visceral * 30.38f)
+                    + (visceral.pow(2) * -22.27f)
+                    + (visceral.pow(3) * 3.912f)
+                    + (visceral.pow(4) * -0.2825f)
+                    + (visceral.pow(5) * 0.007212f)) * 0.08f
 
         val score = var1 + (0.4f * var2) + (0.1f * var3) + var4
-        return min(45f, max(score, 100f))
+        score.coerceIn(45f, 100f)
     }
 
-    fun getBodyAge(weight: Float, impedance: Float): Int {
-        if (age <= 17) return 0
-
+    val bodyAge: Int by lazy {
         val bodyAge =
-            if (sex == MALE) (height * -0.7471f) + (weight * 0.9161f) + (age * 0.4184f) + (impedance * 0.0517f) + 54.2267f
-            else (height * -1.1165f) + (weight * 1.5784f) + (age * 0.4615f) + (impedance * 0.0415f) + 83.2548f
-        return min(18, max(bodyAge.toInt(), 80))
+            if (isMale) (heightCm * -0.7471f) + (weightKg * 0.9161f) + (age * 0.4184f) + (impedance * 0.0517f) + 54.2267f
+            else (heightCm * -1.1165f) + (weightKg * 1.5784f) + (age * 0.4615f) + (impedance * 0.0415f) + 83.2548f
+        bodyAge.toInt().coerceIn(18, 80)
     }
-
-    private fun getIdealWeight(): Float =
-        if (sex == MALE) 0.7f * (height - 80f) else (height - 70f)
-
-    fun getObesity(weight: Float): Float {
-        val ideal = getIdealWeight()
-        if (ideal == 0f) return 0f
-        return (weight - ideal) / ideal * 100f
-    }
-
-    fun getBodyFatObesity(weight: Float): Float {
-        val ideal = getIdealWeight()
-        return (weight - ideal) / ideal * 100f
-    }
-
-    fun getProteinObesity(weight: Float, impedance: Float): Float =
-        100f - getBodyFat(weight, impedance) - getWater(weight, impedance) - ((if (sex == MALE) 300f else 250f) / weight)
 
 }

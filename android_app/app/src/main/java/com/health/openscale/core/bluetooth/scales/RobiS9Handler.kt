@@ -51,11 +51,6 @@ import java.util.UUID
  */
 class RobiS9Handler : ScaleDeviceHandler() {
 
-    private val SERVICE: UUID = uuid16(0xFFB0)
-    private val CHAR_WRITE: UUID = uuid16(0xFFB1)   // write (handshake)
-    private val CHAR_LIVE: UUID = uuid16(0xFFB2)    // notify (live A2 frames)
-    private val CHAR_RESULT: UUID = uuid16(0xFFB3)  // indicate (final A3 result)
-
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name.lowercase(Locale.ROOT)
         // Swan/Icomon/YG are the MGB protocol; never claim them here.
@@ -119,6 +114,19 @@ class RobiS9Handler : ScaleDeviceHandler() {
             "0a0300b002000000000000000000000000000012",
         )
 
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFB0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_WRITE: UUID = uuid16(0xFFB1)   // write (handshake)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_LIVE: UUID = uuid16(0xFFB2)    // notify (live A2 frames)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_RESULT: UUID = uuid16(0xFFB3)  // indicate (final A3 result)
+
         /**
          * Decode the weight (kg) from a Robi S9 frame, or `null` if it is not a valid A3
          * final-result frame.
@@ -137,11 +145,5 @@ class RobiS9Handler : ScaleDeviceHandler() {
             val kg = grams / 1000.0f
             return if (kg > 0f && kg.isFinite()) kg else null
         }
-
-        /** Parse a hex string (even length) into bytes. */
-        fun hexToBytes(hex: String): ByteArray =
-            ByteArray(hex.length / 2) {
-                hex.substring(it * 2, it * 2 + 2).toInt(16).toByte()
-            }
     }
 }

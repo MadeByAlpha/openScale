@@ -42,12 +42,23 @@ import java.util.UUID
  */
 class ExingtechY1Handler : ScaleDeviceHandler() {
 
-    private val SERVICE: UUID =
-        UUID.fromString("f433bd80-75b8-11e2-97d9-0002a5d5c51b")
-    private val CHAR_NOTIFY: UUID =
-        UUID.fromString("1a2ea400-75b9-11e2-be05-0002a5d5c51b")
-    private val CHAR_CMD: UUID =
-        UUID.fromString("29f11080-75b9-11e2-8bf6-0002a5d5c51b")
+    private companion object {
+
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID =
+            UUID.fromString("f433bd80-75b8-11e2-97d9-0002a5d5c51b")
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_NOTIFY: UUID =
+            UUID.fromString("1a2ea400-75b9-11e2-be05-0002a5d5c51b")
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CMD: UUID =
+            UUID.fromString("29f11080-75b9-11e2-8bf6-0002a5d5c51b")
+    }
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name.lowercase(Locale.US)

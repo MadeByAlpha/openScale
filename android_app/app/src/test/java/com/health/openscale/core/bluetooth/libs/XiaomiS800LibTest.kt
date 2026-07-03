@@ -18,6 +18,7 @@
 package com.health.openscale.core.bluetooth.libs
 
 import com.google.common.truth.Truth.assertThat
+import com.health.openscale.core.bluetooth.scales.ScaleDeviceHandler
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.modes.CCMBlockCipher
 import org.bouncycastle.crypto.params.AEADParameters
@@ -33,8 +34,8 @@ import kotlin.math.roundToInt
  */
 class XiaomiS800LibTest {
 
-    private val dummyKey = hex("000102030405060708090a0b0c0d0e0f")
-    private val macFrame = hex("aba18f47ae04") // arbitrary reversed MAC, frame order
+    private val dummyKey = ScaleDeviceHandler.hexToBytes("000102030405060708090a0b0c0d0e0f")
+    private val macFrame = ScaleDeviceHandler.hexToBytes("aba18f47ae04") // arbitrary reversed MAC, frame order
 
     /** Build the 12-byte decrypted 0x4e16 object for a weight (kg). */
     private fun weightObject(kg: Double): ByteArray {
@@ -94,6 +95,5 @@ class XiaomiS800LibTest {
         assertThat(XiaomiS800Lib.decryptMiBeaconV5(frame, wrong, macFrame)).isNull()
     }
 
-    private fun hex(s: String) = ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
     private fun toHex(b: ByteArray) = b.joinToString("") { "%02x".format(it) }
 }

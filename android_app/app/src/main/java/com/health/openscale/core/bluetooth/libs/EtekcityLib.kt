@@ -17,94 +17,97 @@
  */
 package com.health.openscale.core.bluetooth.libs
 
-import com.health.openscale.core.data.GenderType
+import com.health.openscale.core.bluetooth.data.ScaleUser
+import org.jetbrains.annotations.VisibleForTesting
 import kotlin.math.floor
 
+
 // Based on https://github.com/ronnnnnnnnnnnnn/etekcity_esf551_ble
+@Suppress("detekt:MagicNumber")
+class EtekcityLib(user: ScaleUser, weight: Float, impedance: Float) : ImpedanceLib(user, weight, impedance) {
+    @VisibleForTesting
+    internal val bmi: Float = weight * 1E4f / (heightCm * heightCm)
 
-data class EtekcityLib(
-    val gender: GenderType,
-    val age: Int,
-    val weightKg: Double,
-    val heightM: Double,
-    val impedance: Double,
-) {
-    val bmi: Double = weightKg / (heightM * heightM)
-
-    val isMale = gender == GenderType.MALE
-
-    val bodyFatPercentage: Double by lazy {
-        val ageFactor = if (isMale) 0.103 else 0.097
-        val bmiFactor = if (isMale) 1.524 else 1.545
-        val constant = if (isMale) 22.0 else 12.7
-        val raw = floor((ageFactor * age + bmiFactor * bmi - 500.0 / impedance - constant) * 10) / 10.0
-        raw.coerceIn(5.0, 75.0)
+    override val bodyFatPercent: Float by lazy {
+        val ageFactor = if (isMale) 0.103f else 0.097f
+        val bmiFactor = if (isMale) 1.524f else 1.545f
+        val constant = if (isMale) 22.0f else 12.7f
+        val raw = floor((ageFactor * age + bmiFactor * bmi - 500f / impedance - constant) * 10f) / 10f
+        raw.coerceIn(5f, 75f)
     }
 
-    val fatFreeWeight: Double = weightKg * (1 - bodyFatPercentage / 100)
+    val fatFreeWeight: Float = weight * (1f - bodyFatPercent / 100f)
 
-    val visceralFat: Double by lazy {
-        val bmiFactor = if (isMale) 0.8666 else 0.8895
-        val bfpFactor = if (isMale) 0.0082 else 0.0943
-        val fatFactor = if (isMale) 0.026 else -0.0534
-        val constant = if (isMale) 14.2692 else 16.215
-        (bmiFactor * bmi + bfpFactor * bodyFatPercentage + fatFactor * (weightKg - fatFreeWeight) - constant)
-            .coerceIn(1.0, 30.0)
+    override val visceralFatPercent: Float by lazy {
+        val bmiFactor = if (isMale) 0.8666f else 0.8895f
+        val bfpFactor = if (isMale) 0.0082f else 0.0943f
+        val fatFactor = if (isMale) 0.026f else -0.0534f
+        val constant = if (isMale) 14.2692f else 16.215f
+        (bmiFactor * bmi + bfpFactor * bodyFatPercent + fatFactor * (weight - fatFreeWeight) - constant)
+            .coerceIn(1f, 30f)
     }
 
-    val water: Double by lazy {
-        val ff1Factor = if (isMale) 0.05 else 0.06
-        val ff2Factor = if (isMale) 0.76 else 0.73
-        val ff1 = maxOf(1.0, ff1Factor * fatFreeWeight)
-        ((ff2Factor * (fatFreeWeight - ff1) / weightKg * 100.0)).coerceIn(10.0, 80.0)
+    override val waterPercent: Float by lazy {
+        val ff1Factor = if (isMale) 0.05f else 0.06f
+        val ff2Factor = if (isMale) 0.76f else 0.73f
+        val ff1 = maxOf(1f, ff1Factor * fatFreeWeight)
+        (ff2Factor * (fatFreeWeight - ff1).percent).coerceIn(10f, 80f)
+    }
+    override val proteinPercent: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+
+    val basalMetabolicRate: Float = (fatFreeWeight * 21.6f + 370f).coerceIn(900f, 2500f)
+
+    override val musclePercent: Float by lazy {
+        val ff1Factor = if (isMale) 0.05f else 0.06f
+        val ff2Factor = if (isMale) 0.68f else 0.62f
+        val ff1 = maxOf(1f, ff1Factor * fatFreeWeight)
+        ff2Factor * (fatFreeWeight - ff1).percent
     }
 
-    val basalMetabolicRate: Double = (fatFreeWeight * 21.6 + 370).coerceIn(900.0, 2500.0)
+    override val boneMassKg: Float by lazy {
+        val ff1Factor = if (isMale) 0.05f else 0.06f
+        maxOf(1f, ff1Factor * fatFreeWeight)
+    }
+    override val lbmKg: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+    override val bcmKg: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+    override val bmrKcal: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 
-    val skeletalMusclePercentage: Double by lazy {
-        val ff1Factor = if (isMale) 0.05 else 0.06
-        val ff2Factor = if (isMale) 0.68 else 0.62
-        val ff1 = maxOf(1.0, ff1Factor * fatFreeWeight)
-        ff2Factor * (fatFreeWeight - ff1) / weightKg * 100.0
+    val subcutaneousFat: Float by lazy {
+        val bfpFactor = if (isMale) 0.965f else 0.983f
+        val vfvFactor = if (isMale) 0.22f else 0.303f
+        bfpFactor * bodyFatPercent - vfvFactor * visceralFatPercent
     }
 
-    val boneMass: Double by lazy {
-        val ff1Factor = if (isMale) 0.05 else 0.06
-        maxOf(1.0, ff1Factor * fatFreeWeight)
+    val muscleMass: Float by lazy {
+        weight - boneMassKg - 0.01f * bodyFatPercent * weight
     }
 
-    val subcutaneousFat: Double by lazy {
-        val bfpFactor = if (isMale) 0.965 else 0.983
-        val vfvFactor = if (isMale) 0.22 else 0.303
-        bfpFactor * bodyFatPercentage - vfvFactor * visceralFat
-    }
-
-    val muscleMass: Double by lazy {
-        weightKg - boneMass - 0.01 * bodyFatPercentage * weightKg
-    }
-
-    val proteinPercentage: Double by lazy {
-        val bfpFactor = if (isMale) 1.0 else 1.05
-        maxOf(5.0, 100 - bfpFactor * bodyFatPercentage - boneMass / weightKg * 100 - water)
+    val proteinPercentage: Float by lazy {
+        val bfpFactor = if (isMale) 1.0f else 1.05f
+        maxOf(5f, 100 - bfpFactor * bodyFatPercent - boneMassKg.percent - waterPercent)
     }
 
     val weightScore: Int by lazy {
         val heightFactor = if (isMale) 100 else 137
         val constant = if (isMale) 80 else 110
         val factor = if (isMale) 0.7 else 0.45
-        val res = factor * (heightFactor * heightM - constant)
+        val res = factor * (heightFactor * heightCm * 100f - constant)
 
-        if (res <= weightKg) {
-            if (1.3 * res < weightKg) {
+        if (res <= weight) {
+            if (1.3 * res < weight) {
                 return@lazy 50
             }
-            return@lazy (100 - 50 * (weightKg - res) / (0.3 * res)).toInt()
+            return@lazy (100 - 50 * (weight - res) / (0.3 * res)).toInt()
         }
-        if (res * 0.7 < weightKg) {
-            return@lazy (100 - 50 * (res - weightKg) / (0.3 * res)).toInt()
+        if (res * 0.7 < weight) {
+            return@lazy (100 - 50 * (res - weight) / (0.3 * res)).toInt()
         }
         for (x in 0..<6) {
-            if (res * x / 10 > weightKg) {
+            if (res * x / 10 > weight) {
                 return@lazy x * 10
             }
         }
@@ -113,14 +116,14 @@ data class EtekcityLib(
 
     val fatScore: Int by lazy {
         val constant = if (isMale) 16 else 26
-        if (constant < bodyFatPercentage) {
-            if (bodyFatPercentage >= 45) {
+        if (constant < bodyFatPercent) {
+            if (bodyFatPercent >= 45) {
                 50
             } else {
-                (100 - 50 * (bodyFatPercentage - constant) / (45 - constant)).toInt()
+                (100 - 50 * (bodyFatPercent - constant) / (45 - constant)).toInt()
             }
         } else {
-            (100 - 50 * (constant - bodyFatPercentage) / (constant - 5)).toInt()
+            (100 - 50 * (constant - bodyFatPercent) / (constant - 5)).toInt()
         }
     }
 

@@ -45,14 +45,26 @@ import kotlin.math.pow
  */
 class ActiveEraBF06Handler : ScaleDeviceHandler() {
 
-    // --- GATT UUIDs -----------------------------------------------------------
-    private val SERVICE: UUID = uuid16(0xFFB0)
-    private val CHR_WRITE: UUID = uuid16(0xFFB1)
-    private val CHR_NOTIFY: UUID = uuid16(0xFFB2)
+    private companion object {
 
-    // Packet framing
-    private val MAGIC: Byte = 0xAC.toByte()
-    private val DEVICE_TYPE: Byte = 0x27
+        // --- GATT UUIDs -----------------------------------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFB0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_WRITE: UUID = uuid16(0xFFB1)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_NOTIFY: UUID = uuid16(0xFFB2)
+
+        // Packet framing
+        private const val MAGIC: Byte = 0xAC.toByte()
+        private const val DEVICE_TYPE: Byte = 0x27
+
+    }
 
     // Session state
     private var weightStabilized = false
@@ -303,7 +315,7 @@ class ActiveEraBF06Handler : ScaleDeviceHandler() {
     /** D7: heart rate. */
     private fun handleHeartRate(pkt: ByteArray) {
         hrBpm = pkt[0x03].toInt() and 0xFF
-        logI("Heart rate: ${hrBpm} bpm")
+        logI("Heart rate: $hrBpm bpm")
         maybePublishIfComplete()
     }
 
@@ -314,7 +326,7 @@ class ActiveEraBF06Handler : ScaleDeviceHandler() {
         val leftKg = u16be(pkt, 0x0B) / 100.0f
         val hr = pkt[0x0D].toInt() and 0xFF
         val adc = u16be(pkt, 0x0F).toInt()
-        logI("Historical: ${ts}  weight=%.3fkg  left=%.2fkg  hr=%d  adc=%d".format(weight, leftKg, hr, adc))
+        logI("Historical: $ts  weight=%.3fkg  left=%.2fkg  hr=%d  adc=%d".format(weight, leftKg, hr, adc))
         // TODO: if you want to store history, accumulate and publish here.
     }
 

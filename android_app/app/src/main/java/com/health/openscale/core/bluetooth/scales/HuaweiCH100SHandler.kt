@@ -50,11 +50,54 @@ import kotlin.math.min
  */
 class HuaweiCH100SHandler : ScaleDeviceHandler() {
 
-    // --- BLE identifiers ------------------------------------------------------
+    private companion object {
+        // --- BLE identifiers ------------------------------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE = uuid16(0xFAA0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_TX = uuid16(0xFAA1)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_RX = uuid16(0xFAA2)
 
-    private val SERVICE = uuid16(0xFAA0)
-    private val CHAR_TX = uuid16(0xFAA1)
-    private val CHAR_RX = uuid16(0xFAA2)
+        // --- Crypto constants -----------------------------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val AES_KEY = hexToBytes("3D A2 78 4A FB 87 B1 2A 98 0F DE 34 56 73 21 56")
+
+        @JvmStatic
+        @JvmSynthetic
+        private val AES_IV  = hexToBytes("4E F7 64 32 2F DA 76 32 12 3D EB 87 90 FE A2 19")
+
+        // --- Notification opcodes -------------------------------------------------
+
+        private const val OP_WAKEUP       = 0x00.toByte()
+        private const val OP_SLEEP        = 0x01.toByte()
+        private const val OP_UNITS_SET    = 0x02.toByte()
+        private const val OP_CLOCK        = 0x08.toByte()
+        private const val OP_VERSION      = 0x0C.toByte()
+        private const val OP_MEAS_P1      = 0x0E.toByte()
+        private const val OP_MEAS_P2      = 0x8E.toByte()
+        private const val OP_HIST_P1      = 0x10.toByte()
+        private const val OP_HIST_P2      = 0x90.toByte()
+        private const val OP_HIST_DONE    = 0x19.toByte()
+        private const val OP_USER_CHANGED = 0x20.toByte()
+        private const val OP_AUTH_RESULT  = 0x26.toByte()
+        private const val OP_BIND_OK      = 0x27.toByte()
+
+        // --- Commands -------------------------------------------------------------
+
+        private const val CMD_SET_UNIT    = 2.toByte()
+        private const val CMD_SET_CLOCK   = 8.toByte()
+        private const val CMD_USER_INFO   = 9.toByte()
+        private const val CMD_GET_RECORD  = 11.toByte()
+        private const val CMD_GET_VERSION = 12.toByte()
+        private const val CMD_FAT_ACK     = 19.toByte()
+        private const val CMD_AUTH        = 36.toByte()
+        private const val CMD_BIND        = 37.toByte()
+    }
 
     private var sessionMac: String? = null
 
@@ -83,11 +126,6 @@ class HuaweiCH100SHandler : ScaleDeviceHandler() {
         )
     }
 
-    // --- Crypto constants -----------------------------------------------------
-
-    private val AES_KEY = hexToBytes("3D A2 78 4A FB 87 B1 2A 98 0F DE 34 56 73 21 56")
-    private val AES_IV  = hexToBytes("4E F7 64 32 2F DA 76 32 12 3D EB 87 90 FE A2 19")
-
     // --- Session state --------------------------------------------------------
 
     private var authCode: ByteArray = ByteArray(0)
@@ -98,33 +136,6 @@ class HuaweiCH100SHandler : ScaleDeviceHandler() {
 
     private var pendingType: Byte = 0x00
     private var pendingFirst: ByteArray? = null
-
-    // --- Notification opcodes -------------------------------------------------
-
-    private val OP_WAKEUP       = 0x00.toByte()
-    private val OP_SLEEP        = 0x01.toByte()
-    private val OP_UNITS_SET    = 0x02.toByte()
-    private val OP_CLOCK        = 0x08.toByte()
-    private val OP_VERSION      = 0x0C.toByte()
-    private val OP_MEAS_P1      = 0x0E.toByte()
-    private val OP_MEAS_P2      = 0x8E.toByte()
-    private val OP_HIST_P1      = 0x10.toByte()
-    private val OP_HIST_P2      = 0x90.toByte()
-    private val OP_HIST_DONE    = 0x19.toByte()
-    private val OP_USER_CHANGED = 0x20.toByte()
-    private val OP_AUTH_RESULT  = 0x26.toByte()
-    private val OP_BIND_OK      = 0x27.toByte()
-
-    // --- Commands -------------------------------------------------------------
-
-    private val CMD_SET_UNIT    = 2.toByte()
-    private val CMD_SET_CLOCK   = 8.toByte()
-    private val CMD_USER_INFO   = 9.toByte()
-    private val CMD_GET_RECORD  = 11.toByte()
-    private val CMD_GET_VERSION = 12.toByte()
-    private val CMD_FAT_ACK     = 19.toByte()
-    private val CMD_AUTH        = 36.toByte()
-    private val CMD_BIND        = 37.toByte()
 
     // --- Lifecycle ------------------------------------------------------------
 
@@ -271,18 +282,12 @@ class HuaweiCH100SHandler : ScaleDeviceHandler() {
                 // Water%, muscle%, bone, BMR, visceral fat are not sent by the scale.
                 // Compute app-side from impedance using BIA formulas (Chipsea chipset).
                 val user = currentAppUser()
-                val lib = EtekcityLib(
-                    gender = user.gender,
-                    age = user.age,
-                    weightKg = weight.toDouble(),
-                    heightM = user.bodyHeight.toDouble() / 100.0,
-                    impedance = impedance.toDouble()
-                )
-                this.water = lib.water.toFloat()
-                this.muscle = lib.skeletalMusclePercentage.toFloat()
-                this.bone = lib.boneMass.toFloat()
-                this.bmr = lib.basalMetabolicRate.toFloat()
-                this.visceralFat = lib.visceralFat.toFloat()
+                val lib = EtekcityLib(user, weight, impedance.toFloat())
+                this.water = lib.waterPercent
+                this.muscle = lib.musclePercent
+                this.bone = lib.boneMassKg
+                this.bmr = lib.basalMetabolicRate
+                this.visceralFat = lib.visceralFatPercent
             }
         }
         publish(m)

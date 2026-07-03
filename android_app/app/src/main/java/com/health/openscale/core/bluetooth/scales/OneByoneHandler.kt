@@ -44,13 +44,24 @@ import kotlin.math.max
  */
 class OneByoneHandler : ScaleDeviceHandler() {
 
-    // --- UUIDs (16-bit under Bluetooth Base UUID) ------------------------------
-
-    private val SVC_FFF0  = uuid16(0xFFF0)
-    private val CHR_FFF4  = uuid16(0xFFF4) // NOTIFY: mixed weight/body payloads (CF ...)
-    private val CHR_FFF1  = uuid16(0xFFF1) // WRITE: command pipe (FD/ F1/ F2 ...)
-    private val SVC_180F = uuid16(0x180F) //battery service
-    private val CHR_2A19 = uuid16(0x2A19) //battery characteristic
+    private companion object {
+        // --- UUIDs (16-bit under Bluetooth Base UUID) ------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_FFF0  = uuid16(0xFFF0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_FFF4  = uuid16(0xFFF4) // NOTIFY: mixed weight/body payloads (CF ...)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_FFF1  = uuid16(0xFFF1) // WRITE: command pipe (FD/ F1/ F2 ...)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_180F = uuid16(0x180F) //battery service
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_2A19 = uuid16(0x2A19) //battery characteristic
+    }
 
     // --- Small runtime state ---------------------------------------------------
 
@@ -206,34 +217,23 @@ class OneByoneHandler : ScaleDeviceHandler() {
         val nowMs = max(System.currentTimeMillis(), whenCal.timeInMillis)
         if (nowMs - lastSavedAt < DATE_TIME_THRESHOLD_MS) return
         lastSavedAt = nowMs
+        val lib = OneByoneLib(user, weightKg, impedanceOhm)
 
-        // Build composition using OneByoneLib (same as legacy)
-        val (sex, peopleType) = mapUserToLibParams(user)
-        val lib = OneByoneLib(sex, user.age, user.bodyHeight, peopleType)
-
-        val m = ScaleMeasurement().apply {
+        publish(ScaleMeasurement().apply {
             userId = user.id
             dateTime = if (hasTimestamp) whenCal.time else Calendar.getInstance().time
             weight = weightKg
+
+            fat = lib.bodyFatPercent
+            water = lib.waterPercent
+            bone = lib.bodyFatPercent
+            visceralFat = lib.visceralFatPercent
+            muscle = lib.musclePercent
+            lbm = lib.lbmKg
+
             // Store the raw impedance so body composition can be recomputed later.
             impedance = impedanceOhm.toDouble()
-        }
-
-        try {
-            // Derivations
-            val fatPct = lib.getBodyFat(m.weight, impedanceOhm)
-            m.fat = fatPct
-            m.water = lib.getWater(fatPct)
-            m.bone = lib.getBoneMass(m.weight, impedanceOhm)
-            m.visceralFat = lib.getVisceralFat(m.weight)
-            m.muscle = lib.getMuscle(m.weight, impedanceOhm)
-            m.lbm = lib.getLBM(m.weight, m.fat)
-
-            publish(m)
-        } catch (t: Throwable) {
-            // If library throws on impossible inputs, just log & ignore this frame
-            logW("OneByoneLib failed: ${t.message}")
-        }
+        })
     }
 
     // --- Command builders ------------------------------------------------------
@@ -277,19 +277,5 @@ class OneByoneHandler : ScaleDeviceHandler() {
         var x = 0
         for (i in 0 until len) x = x xor (b[i].toInt() and 0xFF)
         return (x and 0xFF).toByte()
-    }
-
-    private fun mapUserToLibParams(u: ScaleUser): Pair<Int, Int> {
-        val sex = if (u.gender == GenderType.MALE) 1 else 0
-        val peopleType = when (u.activityLevel) {
-            // Matches legacy mapping:
-            // SEDENTARY/MILD -> 0, MODERATE -> 1, HEAVY/EXTREME -> 2
-            com.health.openscale.core.data.ActivityLevel.SEDENTARY -> 0
-            com.health.openscale.core.data.ActivityLevel.MILD      -> 0
-            com.health.openscale.core.data.ActivityLevel.MODERATE  -> 1
-            com.health.openscale.core.data.ActivityLevel.HEAVY     -> 2
-            com.health.openscale.core.data.ActivityLevel.EXTREME   -> 2
-        }
-        return sex to peopleType
     }
 }

@@ -50,18 +50,28 @@ import java.util.UUID
 class SenssunHandler : ScaleDeviceHandler() {
 
     companion object {
-        private const val TAG = "SenssunHandler"
+        // Model A
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_A = uuid16(0xFFF0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_A_NOTIFY = uuid16(0xFFF1)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_A_WRITE  = uuid16(0xFFF2)
+
+        // Model B
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_B = uuid16(0xFFB0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_B_NOTIFY = uuid16(0xFFB2)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_B_WRITE  = uuid16(0xFFB2)
     }
-
-    // Model A
-    private val SVC_A = uuid16(0xFFF0)
-    private val CHR_A_NOTIFY = uuid16(0xFFF1)
-    private val CHR_A_WRITE  = uuid16(0xFFF2)
-
-    // Model B
-    private val SVC_B = uuid16(0xFFB0)
-    private val CHR_B_NOTIFY = uuid16(0xFFB2)
-    private val CHR_B_WRITE  = uuid16(0xFFB2)
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         // Legacy mapping used exact name "SENSSUN FAT"

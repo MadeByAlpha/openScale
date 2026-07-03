@@ -100,11 +100,17 @@ class TaylorBIAHandler : ScaleDeviceHandler() {
                     (lo.toInt() and 0xFF)
             return g / 1000.0f
         }
-    }
 
-    private val SERVICE: UUID = uuid16(0xFFB0)
-    private val CHAR_CFG: UUID = uuid16(0xFFB1)   // FFB1: config/command writes (App → Scale)
-    private val CHAR_DATA: UUID = uuid16(0xFFB2)  // FFB2: measurement notifications (Scale → App)
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFB0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CFG: UUID = uuid16(0xFFB1)   // FFB1: config/command writes (App → Scale)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_DATA: UUID = uuid16(0xFFB2)  // FFB2: measurement notifications (Scale → App)
+    }
 
     /** Most recent live (non-zero) weight seen this session; the value we publish once it settles. */
     private var pendingWeightKg: Float = 0f

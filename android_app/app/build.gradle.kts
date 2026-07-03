@@ -1,9 +1,5 @@
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileNotFoundException
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Properties
 import java.util.TimeZone
 
 plugins {
@@ -28,7 +24,7 @@ android {
     defaultConfig {
         applicationId = "com.health.openscale"
         minSdk = 31
-        targetSdk = 36    // TEMP: Android 17 is still beta
+        targetSdk = 36    // TEMP: Android 17 is still in beta
         versionCode = 75
         versionName = "3.1.1"
 
@@ -97,7 +93,7 @@ android {
             enableV1Signing = false
 
             storeFile = file(providers.gradleProperty("signing.keyStore.path"))
-            storePassword = providers.gradleProperty("signing.keyStore.password").orNull
+            storePassword = providers.gradleProperty("signing.keyStore.password").get()
         }
     }
 
@@ -165,7 +161,6 @@ android {
 
     lint {
         abortOnError = false
-        checkReleaseBuilds = false
     }
 }
 
@@ -258,6 +253,9 @@ dependencies {
 
     // Kotlin-CSV
     implementation(libs.kotlin.csv.jvm)
+
+    // Kotlinx
+    implementation(libs.kotlinx.datetime)
 
     // Blessed Kotlin
     implementation(libs.blessed.kotlin)

@@ -62,10 +62,24 @@ import java.util.UUID
  */
 class DrTrustSSW532Handler : ScaleDeviceHandler() {
 
-    private val SERVICE: UUID = uuid16(0xFFB0)
-    private val CHAR_CMD: UUID = uuid16(0xFFB1)
-    private val CHAR_WEIGHT: UUID = uuid16(0xFFB2)
-    private val CHAR_BC: UUID = uuid16(0xFFB3)
+    private companion object {
+
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFB0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CMD: UUID = uuid16(0xFFB1)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_WEIGHT: UUID = uuid16(0xFFB2)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_BC: UUID = uuid16(0xFFB3)
+    }
 
     private enum class State { WAITING_SESSION, WAITING_CONFIRM, MEASURING }
     private var state = State.WAITING_SESSION
@@ -271,14 +285,8 @@ class DrTrustSSW532Handler : ScaleDeviceHandler() {
         fallbackJob = null
         // Foot-to-foot impedance via segmental path: Trunk + Right Leg + Left Leg (~500 Ω range)
         val wholeBodyZ = z3 + z4 + z5
-        val lib = StandardImpedanceLib(
-            gender    = user.gender,
-            age       = user.age,
-            weightKg  = pendingWeightKg.toDouble(),
-            heightM   = user.bodyHeight / 100.0,
-            impedance = wholeBodyZ
-        )
-        val fatPct = lib.totalFatPercentage.toFloat()
+        val lib = StandardImpedanceLib(user, pendingWeightKg, wholeBodyZ.toFloat())
+        val fatPct = lib.bodyFatPercent
         if (fatPct <= 0f) {
             // Impedance out of calibration range — publish weight-only and disconnect
             logD("body comp sanity fail: fatPct=$fatPct wholeBodyZ=$wholeBodyZ")
@@ -293,11 +301,11 @@ class DrTrustSSW532Handler : ScaleDeviceHandler() {
             dateTime    = Date()
             weight      = pendingWeightKg
             fat         = fatPct.coerceIn(0f, 75f)
-            water       = lib.totalBodyWaterPercentage.toFloat().coerceIn(0f, 80f)
-            muscle      = lib.skeletalMusclePercentage.toFloat().coerceIn(0f, 99f)
-            bone        = lib.boneMassKg.toFloat().coerceIn(0f, 10f)
-            bmr         = lib.basalMetabolicRate.toFloat().coerceIn(0f, 5000f)
-            lbm         = lib.fatFreeMassKg.toFloat().coerceIn(0f, 150f)
+            water       = lib.waterPercent.coerceIn(0f, 80f)
+            muscle      = lib.musclePercent.coerceIn(0f, 99f)
+            bone        = lib.boneMassKg.coerceIn(0f, 10f)
+            bmr         = lib.bmrKcal.coerceIn(0f, 5000f)
+            lbm         = lib.lbmKg.coerceIn(0f, 150f)
             visceralFat = estimateVisceralFat(pendingWeightKg, z3, user.age, gender)
             impedance   = wholeBodyZ
         })

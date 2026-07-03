@@ -44,8 +44,6 @@ import kotlin.math.max
 class SinocareHandler : ScaleDeviceHandler() {
 
     companion object {
-        private const val TAG = "SinocareHandler"
-
         private const val MANUFACTURER_DATA_ID = 0xFF64
         private const val WEIGHT_MSB = 10
         private const val WEIGHT_LSB = 9

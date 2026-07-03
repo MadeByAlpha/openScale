@@ -41,51 +41,93 @@ import java.util.UUID
  */
 class RenphoHandler : ScaleDeviceHandler() {
 
-    companion object { private const val TAG = "RenphoHandler" }
+    companion object {
+        // --- Services (16-bit base UUIDs) -----------------------------------------
 
-    // --- Services (16-bit base UUIDs) -----------------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SERV_BODY_COMP     = uuid16(0x181B)
+        @JvmStatic
+        @JvmSynthetic
+        private val SERV_USER_DATA     = uuid16(0x181C)
+        @JvmStatic
+        @JvmSynthetic
+        private val SERV_WEIGHT_SCALE  = uuid16(0x181D)
+        @JvmStatic
+        @JvmSynthetic
+        private val SERV_CUR_TIME      = uuid16(0x1805)
 
-    private val SERV_BODY_COMP     = uuid16(0x181B)
-    private val SERV_USER_DATA     = uuid16(0x181C)
-    private val SERV_WEIGHT_SCALE  = uuid16(0x181D)
-    private val SERV_CUR_TIME      = uuid16(0x1805)
+        // --- Characteristics (incl. vendor/custom) --------------------------------
 
-    // --- Characteristics (incl. vendor/custom) --------------------------------
+        // Custom #0 under Body Composition service
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CUSTOM0_NOTIFY = uuid16(0xFFE1)     // notify
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CUSTOM0        = uuid16(0xFFE2)     // write
 
-    // Custom #0 under Body Composition service
-    private val CHAR_CUSTOM0_NOTIFY = uuid16(0xFFE1)     // notify
-    private val CHAR_CUSTOM0        = uuid16(0xFFE2)     // write
+        // Custom #1 under User Data service (actually UCP 0x2A9F used as both write/indicate)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CUSTOM1_NOTIFY = uuid16(0x2A9F)     // indicate
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CUSTOM1        = uuid16(0x2A9F)     // write
 
-    // Custom #1 under User Data service (actually UCP 0x2A9F used as both write/indicate)
-    private val CHAR_CUSTOM1_NOTIFY = uuid16(0x2A9F)     // indicate
-    private val CHAR_CUSTOM1        = uuid16(0x2A9F)     // write
+        // Body Composition service (standard UUIDs, but payload is vendor-specific on this device)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_BODY_COMP_FEAT = uuid16(0x2A9B)     // read
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_BODY_COMP_MEAS = uuid16(0x2A9C)     // indicate
 
-    // Body Composition service (standard UUIDs, but payload is vendor-specific on this device)
-    private val CHAR_BODY_COMP_FEAT = uuid16(0x2A9B)     // read
-    private val CHAR_BODY_COMP_MEAS = uuid16(0x2A9C)     // indicate
+        // User Data (standard)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_GENDER         = uuid16(0x2A8C)     // 0x00 male, 0x01 female
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_HEIGHT         = uuid16(0x2A8E)     // uint16 (cm, LE)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_BIRTH          = uuid16(0x2A85)     // Year(2 LE), Month(1), Day(1)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_AGE            = uuid16(0x2A80)     // uint8
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_ATHLETE        = uuid16(0x2AFF)     // {0x0D,0x00}=athlete, {0x03,0x00}=non-athlete
 
-    // User Data (standard)
-    private val CHAR_GENDER         = uuid16(0x2A8C)     // 0x00 male, 0x01 female
-    private val CHAR_HEIGHT         = uuid16(0x2A8E)     // uint16 (cm, LE)
-    private val CHAR_BIRTH          = uuid16(0x2A85)     // Year(2 LE), Month(1), Day(1)
-    private val CHAR_AGE            = uuid16(0x2A80)     // uint8
-    private val CHAR_ATHLETE        = uuid16(0x2AFF)     // {0x0D,0x00}=athlete, {0x03,0x00}=non-athlete
+        // Weight Scale (standard UUID but proprietary encoding on this device)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_WEIGHT         = uuid16(0x2A9D)     // notify
 
-    // Weight Scale (standard UUID but proprietary encoding on this device)
-    private val CHAR_WEIGHT         = uuid16(0x2A9D)     // notify
+        // Current Time service
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CUR_TIME       = uuid16(0x2A2B)     // write + (notify on some stacks)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_ICCEDK         = uuid16(0xFFF1)     // vendor notify (service unknown; used as in legacy)
 
-    // Current Time service
-    private val CHAR_CUR_TIME       = uuid16(0x2A2B)     // write + (notify on some stacks)
-    private val CHAR_ICCEDK         = uuid16(0xFFF1)     // vendor notify (service unknown; used as in legacy)
+        // --- "Magic" payloads observed on the legacy driver -----------------------
 
-    // --- "Magic" payloads observed on the legacy driver -----------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val MAGIC0 = byteArrayOf(0x10, 0x01, 0x00, 0x11) // write to FFE2
+        @JvmStatic
+        @JvmSynthetic
+        private val MAGIC1 = byteArrayOf(0x03, 0x00, 0x01, 0x04) // write to FFE2
 
-    private val MAGIC0 = byteArrayOf(0x10, 0x01, 0x00, 0x11) // write to FFE2
-    private val MAGIC1 = byteArrayOf(0x03, 0x00, 0x01, 0x04) // write to FFE2
-
-    // UCP magic (looked like "consent") – legacy always sent [0x02, 0xAA, 0x0F, 0x27]
-    // 0x02 = UDS_CP_CONSENT, index 0xAA, consent 0x270F (9999).
-    private val MAGIC_UCP = byteArrayOf(0x02, 0xAA.toByte(), 0x0F, 0x27)
+        // UCP magic (looked like "consent") – legacy always sent [0x02, 0xAA, 0x0F, 0x27]
+        // 0x02 = UDS_CP_CONSENT, index 0xAA, consent 0x270F (9999).
+        @JvmStatic
+        @JvmSynthetic
+        private val MAGIC_UCP = byteArrayOf(0x02, 0xAA.toByte(), 0x0F, 0x27)
+    }
 
     // -------------------------------------------------------------------------
 

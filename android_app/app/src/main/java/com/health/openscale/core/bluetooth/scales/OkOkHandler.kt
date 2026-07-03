@@ -25,6 +25,7 @@ import com.health.openscale.core.bluetooth.libs.OkOkV2Lib
 import com.health.openscale.core.data.WeightUnit
 import com.health.openscale.core.service.ScannedDeviceInfo
 import com.health.openscale.core.utils.ConverterUtils
+import androidx.core.util.size
 
 /**
  * Unified OKOK broadcast handler with dynamic display name:
@@ -37,41 +38,45 @@ import com.health.openscale.core.utils.ConverterUtils
  */
 class OkOkHandler : ScaleDeviceHandler() {
 
-    // Known manufacturer ids
-    private val MANUF_V20 = 0x20ca
-    private val MANUF_V11 = 0x11ca
-    private val MANUF_VF0 = 0xf0ff
+    private companion object {
 
-    // V20 indices
-    private val IDX_V20_FINAL = 6
-    private val IDX_V20_WEIGHT_MSB = 8
-    private val IDX_V20_WEIGHT_LSB = 9
-    private val IDX_V20_IMPEDANCE_MSB = 10
-    private val IDX_V20_IMPEDANCE_LSB = 11
-    private val IDX_V20_CHECKSUM = 12
+        // Known manufacturer ids
+        private const val MANUF_V20 = 0x20ca
+        private const val MANUF_V11 = 0x11ca
+        private const val MANUF_VF0 = 0xf0ff
 
-    // V11 indices
-    private val IDX_V11_WEIGHT_MSB = 3
-    private val IDX_V11_WEIGHT_LSB = 4
-    private val IDX_V11_BODY_PROPERTIES = 9
-    private val IDX_V11_CHECKSUM = 16
+        // V20 indices
+        private const val IDX_V20_FINAL = 6
+        private const val IDX_V20_WEIGHT_MSB = 8
+        private const val IDX_V20_WEIGHT_LSB = 9
+        private const val IDX_V20_IMPEDANCE_MSB = 10
+        private const val IDX_V20_IMPEDANCE_LSB = 11
+        private const val IDX_V20_CHECKSUM = 12
 
-    // VF0 indices
-    private val IDX_VF0_WEIGHT_MSB = 3
-    private val IDX_VF0_WEIGHT_LSB = 2
+        // V11 indices
+        private const val IDX_V11_WEIGHT_MSB = 3
+        private const val IDX_V11_WEIGHT_LSB = 4
+        private const val IDX_V11_BODY_PROPERTIES = 9
+        private const val IDX_V11_CHECKSUM = 16
 
-    // 0xC0 indices
-    private val IDX_WEIGHT_MSB = 0
-    private val IDX_WEIGHT_LSB = 1
-    private val IDX_IMPEDANCE_MSB = 2
-    private val IDX_IMPEDANCE_LSB = 3
-    private val IDX_ATTRIB     = 6
-    private val UNIT_KG   = 0
-    private val UNIT_JIN  = 1
-    private val UNIT_LB   = 2
-    private val UNIT_STLB = 3
+        // VF0 indices
+        private const val IDX_VF0_WEIGHT_MSB = 3
+        private const val IDX_VF0_WEIGHT_LSB = 2
 
-    private val NamelessAlias = "OKOK Nameless"
+        // 0xC0 indices
+        private const val IDX_WEIGHT_MSB = 0
+        private const val IDX_WEIGHT_LSB = 1
+        private const val IDX_IMPEDANCE_MSB = 2
+        private const val IDX_IMPEDANCE_LSB = 3
+        private const val IDX_ATTRIB = 6
+        private const val UNIT_KG = 0
+        private const val UNIT_JIN = 1
+        private const val UNIT_LB = 2
+        private const val UNIT_STLB = 3
+
+        private const val NamelessAlias = "OKOK Nameless"
+
+    }
 
     /**
      * Decide support + build a *dynamic* displayName based on manufacturer data present
@@ -152,15 +157,15 @@ class OkOkHandler : ScaleDeviceHandler() {
                 weight = kg
                 if (user.age <= 5 || imp == 0f) return@apply
 
-                val lib = OkOkV2Lib(user.age, if (user.gender.isMale()) 1 else 0, user.bodyHeight)
-                water = lib.getWater(kg, imp)
-                visceralFat = lib.getVisceralFat(kg, imp)
-                fat = lib.getBodyFat(kg, imp)
-                muscle = lib.getMuscle(kg, imp)
-                lbm = lib.getLBM(kg, imp)
-                bone = lib.getBoneMass(kg, imp)
-                bmr = lib.getBMR(kg)
-                protein = lib.getProtein(kg, imp)
+                val lib = OkOkV2Lib(user, kg, imp)
+                water = lib.waterPercent
+                visceralFat = lib.visceralFatPercent
+                fat = lib.bodyFatPercent
+                muscle = lib.musclePercent
+                lbm = lib.lbmKg
+                bone = lib.boneMassKg
+                bmr = lib.bmrKcal
+                protein = lib.proteinPercent
                 impedance = imp.toDouble()
             })
             return BroadcastAction.CONSUMED_STOP
@@ -284,12 +289,12 @@ class OkOkHandler : ScaleDeviceHandler() {
         if (sa.indexOfKey(key) >= 0) sa.get(key) else null
 
     private fun containsLowByteC0(sa: SparseArray<ByteArray>): Boolean {
-        for (i in 0 until sa.size()) if ((sa.keyAt(i) and 0xFF) == 0xC0) return true
+        for (i in 0 until sa.size) if ((sa.keyAt(i) and 0xFF) == 0xC0) return true
         return false
     }
 
     private fun firstKeyWithLowByteC0(sa: SparseArray<ByteArray>): Int? {
-        for (i in 0 until sa.size()) {
+        for (i in 0 until sa.size) {
             val k = sa.keyAt(i)
             if ((k and 0xFF) == 0xC0) return k
         }

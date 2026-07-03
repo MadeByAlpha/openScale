@@ -19,6 +19,7 @@ package com.health.openscale.core.bluetooth.scales
 
 import com.health.openscale.core.bluetooth.data.ScaleMeasurement
 import com.health.openscale.core.bluetooth.data.ScaleUser
+import com.health.openscale.core.bluetooth.libs.YunmaiLib
 import com.health.openscale.core.service.ScannedDeviceInfo
 import com.health.openscale.core.utils.LogManager
 import java.util.Date
@@ -42,12 +43,24 @@ class RealmeSmartScaleHandler : ScaleDeviceHandler() {
     companion object {
         private const val TAG = "RealmeScaleHandler"
 
+        @JvmStatic
+        @JvmSynthetic
         private val SVC_A602 = UUID.fromString("0000a602-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
         private val CHR_A621 = UUID.fromString("0000a621-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
         private val CHR_A622 = UUID.fromString("0000a622-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
         private val CHR_A624 = UUID.fromString("0000a624-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
         private val CHR_A625 = UUID.fromString("0000a625-0000-1000-8000-00805f9b34fb")
 
+        @JvmStatic
+        @JvmSynthetic
         private val KEEP_ALIVE_CMD = byteArrayOf(0x00, 0x01, 0xD9.toByte())
     }
 
@@ -137,19 +150,14 @@ class RealmeSmartScaleHandler : ScaleDeviceHandler() {
         // --- LOCAL BIA CALCULATION ENGINE ---
         if (impedance > 0) {
             measurement.impedance = impedance.toDouble()
-
-            val sex = if (user.gender.isMale()) 1 else 0
-            val calc = com.health.openscale.core.bluetooth.libs.YunmaiLib(sex, user.bodyHeight, user.activityLevel)
-
-            val fatPct = calc.getFat(user.age, weightKg, impedance)
-
-            if (fatPct > 0f) {
-                measurement.fat = fatPct
-                measurement.muscle = calc.getMuscle(fatPct) / weightKg * 100.0f
-                measurement.water = calc.getWater(fatPct)
-                measurement.bone = calc.getBoneMass(measurement.muscle, weightKg)
-                measurement.lbm = calc.getLeanBodyMass(weightKg, fatPct)
-                measurement.visceralFat = calc.getVisceralFat(fatPct, user.age)
+            val calc = YunmaiLib(user, weightKg, impedance.toFloat())
+            if (calc.bodyFatPercent > 0f) {
+                measurement.fat = calc.bodyFatPercent
+                measurement.muscle = calc.musclePercent
+                measurement.water = calc.waterPercent
+                measurement.bone = calc.boneMassKg
+                measurement.lbm = calc.lbmKg
+                measurement.visceralFat = calc.visceralFatPercent
             }
         }
 

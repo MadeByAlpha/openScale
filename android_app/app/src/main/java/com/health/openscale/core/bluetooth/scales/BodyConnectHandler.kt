@@ -57,6 +57,45 @@ import kotlin.random.Random
  */
 class BodyConnectHandler : ScaleDeviceHandler() {
 
+    private companion object {
+
+        // --- UUIDs (Bluetooth Base UUID, 16-bit short codes) -----------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC = uuid16(0x7892)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_WEIGHT = uuid16(0x8A24) // 0x1F weight frames
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_BODY  = uuid16(0x8A22) // 0x7F body comp frames
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_DNLD = uuid16(0x8A81) // host → device
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_UPLD = uuid16(0x8A82) // device → host
+
+        // --- Upload (device → host) opcodes ----------------------------------------
+
+        private const val CMD_PASSWORD: Byte     = 0xA0.toByte()
+        private const val CMD_CHALLENGE: Byte    = 0xA1.toByte()
+        private const val CMD_SLOT_STATUS: Byte  = 0x83.toByte()
+        private const val CMD_PROFILE_ECHO: Byte = 0xC0.toByte()
+
+        // --- Download (host → device) opcodes --------------------------------------
+
+        private const val CMD_ACK: Byte                = 0x03
+        private const val CMD_TIME: Byte               = 0x02
+        private const val CMD_CHALLENGE_RESPONSE: Byte = 0x20
+        private const val CMD_BROADCAST: Byte          = 0x21
+        private const val CMD_ENABLE_DISCONNECT: Byte  = 0x22
+
+        // Timestamp base: 2010-01-01 00:00:00 UTC; device stores seconds since this epoch
+        private const val TS_OFFSET = 1262304000L
+
+    }
+
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name
         if (!name.startsWith("1BODY CONNECT") && !name.startsWith("0BODY CONNECT")) return null
@@ -68,34 +107,8 @@ class BodyConnectHandler : ScaleDeviceHandler() {
         )
     }
 
-    // --- UUIDs (Bluetooth Base UUID, 16-bit short codes) -----------------------
-
-    private val SVC = uuid16(0x7892)
-    private val CHR_WEIGHT = uuid16(0x8A24) // 0x1F weight frames
-    private val CHR_BODY  = uuid16(0x8A22) // 0x7F body comp frames
-    private val CHR_DNLD = uuid16(0x8A81) // host → device
-    private val CHR_UPLD = uuid16(0x8A82) // device → host
-
-    // --- Upload (device → host) opcodes ----------------------------------------
-
-    private val CMD_PASSWORD: Byte     = 0xA0.toByte()
-    private val CMD_CHALLENGE: Byte    = 0xA1.toByte()
-    private val CMD_SLOT_STATUS: Byte  = 0x83.toByte()
-    private val CMD_PROFILE_ECHO: Byte = 0xC0.toByte()
-
-    // --- Download (host → device) opcodes --------------------------------------
-
-    private val CMD_ACK: Byte                = 0x03
-    private val CMD_TIME: Byte               = 0x02
-    private val CMD_CHALLENGE_RESPONSE: Byte = 0x20
-    private val CMD_BROADCAST: Byte          = 0x21
-    private val CMD_ENABLE_DISCONNECT: Byte  = 0x22
-
     // Non-zero broadcast ID required for pairing to succeed; generated randomly per device instance
-    private val BROADCAST_ID = Random.nextInt(Int.MAX_VALUE - 1) + 1
-
-    // Timestamp base: 2010-01-01 00:00:00 UTC; device stores seconds since this epoch
-    private val TS_OFFSET = 1262304000L
+    private val broadcastId = Random.nextInt(Int.MAX_VALUE - 1) + 1
 
     // --- Pairing state ---------------------------------------------------------
 
@@ -153,7 +166,7 @@ class BodyConnectHandler : ScaleDeviceHandler() {
         userInfo(R.string.bluetooth_scale_trisa_success_pairing)
         pairing = true
         // Broadcast ID must be set before the scale accepts further commands
-        writeCommand(CMD_BROADCAST, BROADCAST_ID)
+        writeCommand(CMD_BROADCAST, broadcastId)
     }
 
     private fun onChallenge(data: ByteArray) {

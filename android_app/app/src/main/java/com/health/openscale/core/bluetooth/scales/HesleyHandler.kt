@@ -35,9 +35,19 @@ import kotlin.math.max
  */
 class HesleyHandler : ScaleDeviceHandler() {
 
-    private val SERVICE: UUID = uuid16(0xFFF0)
-    private val CHAR_CMD: UUID = uuid16(0xFFF1) // write-only
-    private val CHAR_NOTIFY: UUID = uuid16(0xFFF4) // notify (+read on some firmwares)
+    private companion object {
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFF0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CMD: UUID = uuid16(0xFFF1) // write-only
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_NOTIFY: UUID = uuid16(0xFFF4) // notify (+read on some firmwares)
+    }
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name.lowercase(Locale.US)
@@ -95,7 +105,7 @@ class HesleyHandler : ScaleDeviceHandler() {
             this.bone = bone
         }
 
-        logD( "Hesley result kg=${m.weight} fat=${m.fat} water=${m.water} muscle=${m.muscle} bone=${m.bone}")
+        logD("Hesley result kg=${m.weight} fat=${m.fat} water=${m.water} muscle=${m.muscle} bone=${m.bone}")
         publish(m)
     }
 }

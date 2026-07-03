@@ -41,14 +41,24 @@ import kotlin.math.min
  */
 class RenphoES26BBHandler : ScaleDeviceHandler() {
 
-    private val SVC get() = uuid16(0x1A10)
-    private val CHR_NOTIFY get() = uuid16(0x2A10)
-    private val CHR_WRITE get() = uuid16(0x2A11)
+    private companion object {
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC = uuid16(0x1A10)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_NOTIFY = uuid16(0x2A10)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_WRITE = uuid16(0x2A11)
 
-    // Start/enable stream “magic” from legacy implementation (fixed, includes checksum)
-    private val START_CMD = byteArrayOf(
-        0x55, 0xAA.toByte(), 0x90.toByte(), 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x94.toByte()
-    )
+        // Start/enable stream “magic” from legacy implementation (fixed, includes checksum)
+        @JvmStatic
+        @JvmSynthetic
+        private val START_CMD = byteArrayOf(
+            0x55, 0xAA.toByte(), 0x90.toByte(), 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x94.toByte()
+        )
+    }
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name

@@ -44,10 +44,24 @@ import java.util.UUID
  */
 class EufyP2Handler : ScaleDeviceHandler() {
 
-    private val SERVICE: UUID = uuid16(0xFFF0)
-    private val CHAR_WRITE: UUID = uuid16(0xFFF1)
-    private val CHAR_DATA: UUID = uuid16(0xFFF2)   // weight notify
-    private val CHAR_AUTH: UUID = uuid16(0xFFF4)   // auth notify
+    private companion object {
+
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFF0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_WRITE: UUID = uuid16(0xFFF1)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_DATA: UUID = uuid16(0xFFF2)   // weight notify
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_AUTH: UUID = uuid16(0xFFF4)   // auth notify
+    }
 
     private var auth: EufyAuthHandler? = null
     private var c3Seen = false

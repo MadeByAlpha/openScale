@@ -34,13 +34,21 @@ import java.util.UUID
 class EtekcityESF551Handler : ScaleDeviceHandler() {
 
     companion object {
+        @JvmStatic
+        @JvmSynthetic
         private val SCALE_SERVICE = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
+
+        @JvmStatic
+        @JvmSynthetic
         private val WEIGHT_CHARACTERISTIC_NOTIFY = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
+
+        @JvmStatic
+        @JvmSynthetic
         private val ALIRO_CHARACTERISTIC = UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb")
 
-        private val DEVICE_INFORMATION_SERVICE = UUID.fromString("0000180a-0000-1000-8000-00805f9b34fb")
-        private val HW_REVISION_STRING_CHARACTERISTIC = UUID.fromString("00002a27-0000-1000-8000-00805f9b34fb")
-        private val SW_REVISION_STRING_CHARACTERISTIC = UUID.fromString("00002a28-0000-1000-8000-00805f9b34fb")
+        //private val DEVICE_INFORMATION_SERVICE = UUID.fromString("0000180a-0000-1000-8000-00805f9b34fb")
+        //private val HW_REVISION_STRING_CHARACTERISTIC = UUID.fromString("00002a27-0000-1000-8000-00805f9b34fb")
+        //private val SW_REVISION_STRING_CHARACTERISTIC = UUID.fromString("00002a28-0000-1000-8000-00805f9b34fb")
     }
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
@@ -112,29 +120,23 @@ class EtekcityESF551Handler : ScaleDeviceHandler() {
         val weightRaw = data[10].toUByte().toUInt() or
                 data[11].toUByte().toUInt().shl(8) or
                 data[12].toUByte().toUInt().shl(16)
-        val weightKg = weightRaw.toDouble() / 1000.0
-        val impedance = (data[13].toUByte().toUInt() or data[14].toUByte().toUInt().shl(8)).toDouble()
+        val weightKg = weightRaw.toFloat() / 1000f
+        val impedance = (data[13].toUByte().toUInt() or data[14].toUByte().toUInt().shl(8)).toFloat()
         //        val displayUnit = WeightUnit.fromInt(data[21].toInt())
         val measurement = ScaleMeasurement(
             userId = user.id,
             dateTime = Date(),
-            weight = weightKg.toFloat(),
-            impedance = impedance,
+            weight = weightKg,
+            impedance = impedance.toDouble(),
         )
 
         if (impedance > 0 && impedance < 1500) {
-            val lib = StandardImpedanceLib(
-                gender = user.gender,
-                age = user.age,
-                weightKg = weightKg,
-                heightM = user.bodyHeight / 100.0,
-                impedance = impedance,
-            )
-            measurement.fat = lib.totalFatPercentage.toFloat()
-            measurement.water = lib.totalBodyWaterPercentage.toFloat()
-            measurement.muscle = lib.skeletalMusclePercentage.toFloat()
-            measurement.bone = lib.boneMassKg.toFloat()
-            measurement.bmr = lib.basalMetabolicRate.toFloat()
+            val lib = StandardImpedanceLib(user, weightKg, impedance)
+            measurement.fat = lib.bodyFatPercent
+            measurement.water = lib.waterPercent
+            measurement.muscle = lib.musclePercent
+            measurement.bone = lib.boneMassKg
+            measurement.bmr = lib.bmrKcal
         }
 
         if (data[20] == 1.toByte() && impedance > 0) {

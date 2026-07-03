@@ -21,6 +21,7 @@ import com.health.openscale.R
 import com.health.openscale.core.bluetooth.data.ScaleMeasurement
 import com.health.openscale.core.bluetooth.data.ScaleUser
 import com.health.openscale.core.bluetooth.libs.YunmaiLib
+import com.health.openscale.core.bluetooth.libs.YunmaiLib.Companion.isYunmaiActive
 import com.health.openscale.core.data.WeightUnit
 import com.health.openscale.core.service.ScannedDeviceInfo
 import com.health.openscale.core.utils.ConverterUtils
@@ -61,7 +62,7 @@ class YunmaiHandler(
         fun toByte(): Byte = value.toByte()
     }
 
-    private var lastMeasurement : ScaleMeasurement? = null
+    private var lastMeasurement: ScaleMeasurement? = null
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name
@@ -93,12 +94,6 @@ class YunmaiHandler(
             linkMode = LinkMode.CONNECT_GATT
         )
     }
-
-    // GATT layout used by Yunmai SE/Mini
-    private val SVC_MEAS: UUID = uuid16(0xFFE0)
-    private val CHR_MEAS: UUID = uuid16(0xFFE4)
-    private val SVC_CMD:  UUID = uuid16(0xFFE5)
-    private val CHR_CMD:  UUID = uuid16(0xFFE9)
 
     override fun onConnected(user: ScaleUser) {
         // 1) Send user profile
@@ -161,7 +156,7 @@ class YunmaiHandler(
         val sex: Byte = if (user.gender.isMale()) 0x01 else 0x02
         // Stones are sent as LB on the device; vendor app converts later.
         val unit: Byte = if (user.scaleUnit == WeightUnit.KG) 0x01 else 0x02
-        val activity: Byte = YunmaiLib.toYunmaiActivityLevel(user.activityLevel).toByte()
+        val activity: Byte = if (user.activityLevel.isYunmaiActive()) 1 else 0
 
         val payload = byteArrayOf(
             0x0D, 0x12, WritePacketCommand.SET_USER.toByte(), 0x01, 0x00, 0x00,
@@ -232,23 +227,18 @@ class YunmaiHandler(
 
             val protocolVer = frame[1].toInt() and 0xFF
 
-            val sexInt = if (user.gender.isMale()) 1 else 0
-            val yunmai = YunmaiLib(sexInt, user.bodyHeight, user.activityLevel)
+            val fatPct =
+                if (protocolVer >= 0x1E) ConverterUtils.fromUnsignedInt16Be(frame, 17) / 100.0f
+                else null
+            val yunmai = YunmaiLib(user, weightKg, resistance.toFloat(), fatPct)
 
-            val fatPct: Float = if (protocolVer >= 0x1E) {
-                // Embedded fat percentage (BE u16)/100
-                ConverterUtils.fromUnsignedInt16Be(frame, 17) / 100.0f
-            } else {
-                yunmai.getFat(user.age, weightKg, resistance)
-            }
-
-            if (fatPct > 0f && fatPct.isFinite()) {
-                m.fat = fatPct
-                m.muscle = yunmai.getMuscle(fatPct)
-                m.water = yunmai.getWater(fatPct)
-                m.bone = yunmai.getBoneMass(m.muscle, weightKg)
-                m.lbm = yunmai.getLeanBodyMass(weightKg, fatPct)
-                m.visceralFat = yunmai.getVisceralFat(fatPct, user.age)
+            if (yunmai.bodyFatPercent > 0f && yunmai.bodyFatPercent.isFinite()) {
+                m.fat = yunmai.bodyFatPercent
+                m.muscle = yunmai.musclePercent
+                m.water = yunmai.waterPercent
+                m.bone = yunmai.boneMassKg
+                m.lbm = yunmai.lbmKg
+                m.visceralFat = yunmai.visceralFatPercent
             } else {
                 logW("Body fat is zero/invalid (prot=$protocolVer, R=$resistance)")
             }
@@ -257,32 +247,55 @@ class YunmaiHandler(
         return m
     }
 
-    // --- Utils ----------------------------------------------------------------
+    private companion object {
+        // GATT layout used by Yunmai SE/Mini
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_MEAS = uuid16(0xFFE0)
 
-    private fun xorChecksum(bytes: ByteArray, start: Int, endExclusive: Int): Byte {
-        var acc = 0
-        for (i in start until endExclusive) acc = acc xor (bytes[i].toInt() and 0xFF)
-        return acc.toByte()
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_MEAS = uuid16(0xFFE4)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_CMD = uuid16(0xFFE5)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_CMD = uuid16(0xFFE9)
+
+        // --- Utils ----------------------------------------------------------------
+
+        @JvmStatic
+        private fun xorChecksum(bytes: ByteArray, start: Int, endExclusive: Int): Byte {
+            var acc = 0
+            for (i in start until endExclusive) acc = acc xor (bytes[i].toInt() and 0xFF)
+            return acc.toByte()
+        }
+
+        @JvmStatic
+        private fun isDuplicateMeasurement(new: ScaleMeasurement, existing: ScaleMeasurement): Boolean {
+            val timeThresholdMs = 2000 // 2 sec tolerance
+            val valueTolerance = 0.01 // 10 g tolerance
+
+            val newTime = new.dateTime?.time ?: 0L
+            val existingTime = existing.dateTime?.time ?: 0L
+            val timeDiff = abs(newTime - existingTime)
+            if (timeDiff > timeThresholdMs) return false
+
+            if (abs(new.weight - existing.weight) > valueTolerance) return false
+            if (abs(new.fat - existing.fat) > valueTolerance) return false
+            if (abs(new.water - existing.water) > valueTolerance) return false
+            if (abs(new.muscle - existing.muscle) > valueTolerance) return false
+            if (abs(new.bone - existing.bone) > valueTolerance) return false
+            if (abs(new.visceralFat - existing.visceralFat) > valueTolerance) return false
+
+            return true
+        }
+
+        @JvmStatic
+        @JvmSynthetic
+        private val MAGIC_START = byteArrayOf(0x0D, 0x05, WritePacketCommand.GET_PROTOCOL_VERSION.toByte(), 0x00, 0x16)
     }
-
-    private fun isDuplicateMeasurement(new: ScaleMeasurement, existing: ScaleMeasurement): Boolean {
-        val timeThresholdMs = 2000 // 2 sec tolerance
-        val valueTolerance = 0.01  // 10 g tolerance
-
-        val newTime = new.dateTime?.time ?: 0L
-        val existingTime = existing.dateTime?.time ?: 0L
-        val timeDiff = abs(newTime - existingTime)
-        if (timeDiff > timeThresholdMs) return false
-
-        if (abs(new.weight - existing.weight) > valueTolerance) return false
-        if (abs(new.fat - existing.fat) > valueTolerance) return false
-        if (abs(new.water - existing.water) > valueTolerance) return false
-        if (abs(new.muscle - existing.muscle) > valueTolerance) return false
-        if (abs(new.bone - existing.bone) > valueTolerance) return false
-        if (abs(new.visceralFat - existing.visceralFat) > valueTolerance) return false
-
-        return true
-    }
-
-    private val MAGIC_START = byteArrayOf(0x0D, 0x05, WritePacketCommand.GET_PROTOCOL_VERSION.toByte(), 0x00, 0x16)
 }

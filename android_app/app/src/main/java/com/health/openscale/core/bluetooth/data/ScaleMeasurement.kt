@@ -17,7 +17,6 @@
  */
 package com.health.openscale.core.bluetooth.data
 
-import com.health.openscale.core.data.WeightUnit
 import java.util.Date
 
 /**
@@ -32,8 +31,8 @@ data class ScaleMeasurement(
     var muscle: Float = 0.0f, // must be in percentage
     var visceralFat: Float = 0.0f, // must be in percentage
     var bone: Float = 0.0f,  // must be in kg
-    var lbm : Float = 0.0f, // must be in kg
-    var bmr: Float = 0.0f,       // Basal Metabolic Rate in kcal
+    var lbm: Float = 0.0f, // must be in kg
+    var bmr: Float = 0.0f, // Basal Metabolic Rate in kcal
     var heartRate: Int = 0, // must be bpm
     var impedance: Double = 0.0, // Ohms — high-frequency band when the scale is dual-band
     var impedanceLow: Double = 0.0, // Ohms — low-frequency band; 0 when not reported

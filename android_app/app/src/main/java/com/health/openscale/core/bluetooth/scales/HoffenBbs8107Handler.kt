@@ -39,10 +39,29 @@ import kotlin.math.max
  */
 class HoffenBbs8107Handler : ScaleDeviceHandler() {
 
-    // --- GATT UUIDs -----------------------------------------------------------
+    private companion object {
+        // --- GATT UUIDs -----------------------------------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFB0)
 
-    private val SERVICE: UUID = uuid16(0xFFB0)
-    private val CHAR: UUID = uuid16(0xFFB2)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR: UUID = uuid16(0xFFB2)
+
+        // --- Wire constants -------------------------------------------------------
+        private const val MAGIC: Byte = 0xFA.toByte()
+
+        // Responses (value[1])
+        private const val RESP_INTERMEDIATE: Byte = 0x01
+        private const val RESP_FINAL: Byte = 0x02
+        private const val RESP_ACK: Byte = 0x03
+
+        // Commands to send (value[1] when we transmit)
+        private const val CMD_MEASUREMENT_DONE: Byte = 0x82.toByte()
+        private const val CMD_CHANGE_UNIT: Byte = 0x83.toByte()
+        private const val CMD_SEND_USER: Byte = 0x85.toByte()
+    }
 
     // --- DeviceSupport --------------------------------------------------------
 
@@ -63,20 +82,6 @@ class HoffenBbs8107Handler : ScaleDeviceHandler() {
             linkMode = LinkMode.CONNECT_GATT
         )
     }
-
-    // --- Wire constants -------------------------------------------------------
-
-    private val MAGIC: Byte = 0xFA.toByte()
-
-    // Responses (value[1])
-    private val RESP_INTERMEDIATE: Byte = 0x01
-    private val RESP_FINAL: Byte = 0x02
-    private val RESP_ACK: Byte = 0x03
-
-    // Commands to send (value[1] when we transmit)
-    private val CMD_MEASUREMENT_DONE: Byte = 0x82.toByte()
-    private val CMD_CHANGE_UNIT: Byte = 0x83.toByte()
-    private val CMD_SEND_USER: Byte = 0x85.toByte()
 
     // --- Session state --------------------------------------------------------
 

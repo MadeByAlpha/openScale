@@ -114,7 +114,7 @@ class HuaweiAhCh100HandlerTest {
 
     @Test
     fun `aesCtr is symmetric`() {
-        val key = HuaweiAhCh100Handler.hexToBytes(EXPECTED_MAGIC_KEY)
+        val key = ScaleDeviceHandler.hexToBytes(EXPECTED_MAGIC_KEY)
         val pt = hex("01ca031801ea070513080c21021c02")
         val ct = HuaweiAhCh100Handler.aesCtr(pt, key, HuaweiAhCh100Handler.INITIAL_IV)
         val rt = HuaweiAhCh100Handler.aesCtr(ct, key, HuaweiAhCh100Handler.INITIAL_IV)
@@ -161,7 +161,7 @@ class HuaweiAhCh100HandlerTest {
     @Test
     fun `buildEncryptedCommand uses payload size as length and AES-CTR encrypts`() {
         val mac = HuaweiAhCh100Handler.macStringToBytes(TEST_MAC)
-        val mk = HuaweiAhCh100Handler.hexToBytes(EXPECTED_MAGIC_KEY)
+        val mk = ScaleDeviceHandler.hexToBytes(EXPECTED_MAGIC_KEY)
         val payload = hex("1122334455667788")
         val frame = HuaweiAhCh100Handler.buildEncryptedCommand(
             cmd = HuaweiAhCh100Handler.CMD_USER_INFO,

@@ -47,21 +47,37 @@ class QNHandler : ScaleDeviceHandler() {
         private const val MAX_STORED_DATA_QUERY_ATTEMPTS = 10
         private const val STORED_DATA_RETRY_DELAY_MS = 5_000L
         private const val MAX_STORED_RECORD_AGE_BEFORE_SESSION_SECONDS = 90L
+
+        // ---- Services / Characteristics (16-bit UUIDs) ---------------------------
+
+        // Type 1 (FFE0..FFE5)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_T1                     = uuid16(0xFFE0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_T1_NOTIFY_WEIGHT_TIME  = uuid16(0xFFE1) // notify (weight/time/resistances)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_T1_INDICATE_MISC       = uuid16(0xFFE2) // indicate (misc ack)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_T1_WRITE_CONFIG        = uuid16(0xFFE3) // write (unit config)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_T1_WRITE_TIME          = uuid16(0xFFE4) // write (time sync)
+
+        // Type 2 (FFF0..FFF2)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_T2                     = uuid16(0xFFF0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_T2_NOTIFY_WEIGHT_TIME  = uuid16(0xFFF1) // notify (weight/time/resistances)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_T2_WRITE_SHARED        = uuid16(0xFFF2) // write (used for unit+time on T2)
     }
-
-    // ---- Services / Characteristics (16-bit UUIDs) ---------------------------
-
-    // Type 1 (FFE0..FFE5)
-    private val SVC_T1                     = uuid16(0xFFE0)
-    private val CHR_T1_NOTIFY_WEIGHT_TIME  = uuid16(0xFFE1) // notify (weight/time/resistances)
-    private val CHR_T1_INDICATE_MISC       = uuid16(0xFFE2) // indicate (misc ack)
-    private val CHR_T1_WRITE_CONFIG        = uuid16(0xFFE3) // write (unit config)
-    private val CHR_T1_WRITE_TIME          = uuid16(0xFFE4) // write (time sync)
-
-    // Type 2 (FFF0..FFF2)
-    private val SVC_T2                     = uuid16(0xFFF0)
-    private val CHR_T2_NOTIFY_WEIGHT_TIME  = uuid16(0xFFF1) // notify (weight/time/resistances)
-    private val CHR_T2_WRITE_SHARED        = uuid16(0xFFF2) // write (used for unit+time on T2)
 
     // ---- State ----------------------------------------------------------------
 
@@ -164,7 +180,7 @@ class QNHandler : ScaleDeviceHandler() {
 
         // IMPORTANT: Do NOT send configuration yet!
         // Wait for 0x12 frame to arrive with protocol type first.
-        
+
         // Tell the user to step on
         userInfo(R.string.bt_info_step_on_scale)
     }
@@ -436,15 +452,15 @@ class QNHandler : ScaleDeviceHandler() {
     /**
      * 0x12 frame: contains a flag describing the native weight scaling.
      * If byte[10] == 1 → /100 else → /10.
-     * 
+     *
      * CRITICAL FIX: Now sends configuration commands AFTER receiving this frame.
      */
     private fun handleScaleInfoFrame(data: ByteArray) {
         if (data.size <= 10) return
-        
+
         weightScaleFactor = if (data[10].toInt() == 1) 100.0f else 10.0f
         logD("QN: set weightScaleFactor=$weightScaleFactor from opcode 0x12")
-        
+
         // NOW send the configuration after we have the protocol type
         if (!hasReceivedProtocolType) {
             hasReceivedProtocolType = true
@@ -462,7 +478,7 @@ class QNHandler : ScaleDeviceHandler() {
             logD("QN: ERROR - currentUser is null, cannot send configuration")
             return
         }
-        
+
         val unitByte = when (user.scaleUnit) {
             WeightUnit.LB, WeightUnit.ST -> 0x02.toByte() // LB (vendor uses LB also for ST in their apps)
             else -> 0x01.toByte() // KG
@@ -482,7 +498,7 @@ class QNHandler : ScaleDeviceHandler() {
         if (hasCharacteristic(SVC_T2, CHR_T2_WRITE_SHARED)) {
             writeTo(SVC_T2, CHR_T2_WRITE_SHARED, cfg, true)
         }
-        
+
         // Push current time (seconds since 2000-01-01).
         val epochSecs = (System.currentTimeMillis() / 1000L) - SCALE_UNIX_TIMESTAMP_OFFSET
         val t = epochSecs.toInt()
@@ -499,7 +515,7 @@ class QNHandler : ScaleDeviceHandler() {
         if (hasCharacteristic(SVC_T2, CHR_T2_WRITE_SHARED)) {
             writeTo(SVC_T2, CHR_T2_WRITE_SHARED, timeMagic, true)
         }
-        
+
         logD("QN: configuration commands sent successfully")
     }
 
@@ -533,16 +549,12 @@ class QNHandler : ScaleDeviceHandler() {
 
         val impedance = if (r1 < 410f) 3.0f else 0.3f * (r1 - 400f)
 
-        val trisa = TrisaBodyAnalyzeLib(
-            if (user.gender.isMale()) 1 else 0,
-            user.age,
-            user.bodyHeight
-        )
+        val trisa = TrisaBodyAnalyzeLib(user, weightKg, impedance)
 
-        m.fat = trisa.getFat(weightKg, impedance)
-        m.water = trisa.getWater(weightKg, impedance)
-        m.muscle = trisa.getMuscle(weightKg, impedance)
-        m.bone = trisa.getBone(weightKg, impedance)
+        m.fat = trisa.bodyFatPercent
+        m.water = trisa.waterPercent
+        m.muscle = trisa.musclePercent
+        m.bone = trisa.boneMassKg
 
         logD("QN: publishing $source measurement weight=$weightKg kg r1=$r1 impedance=$impedance")
         publish(snapshot(m))

@@ -18,6 +18,11 @@
 package com.health.openscale.core.bluetooth.libs
 
 import com.google.common.truth.Truth.assertThat
+import com.health.openscale.core.bluetooth.libs.utils.EPS
+import com.health.openscale.core.bluetooth.libs.utils.InstanceBuilder
+import com.health.openscale.core.bluetooth.libs.utils.Snapshot
+import com.health.openscale.core.bluetooth.libs.utils.Supports
+import com.health.openscale.core.bluetooth.libs.utils.user
 import org.junit.Test
 
 /**
@@ -29,228 +34,198 @@ import org.junit.Test
  */
 class TrisaBodyAnalyzeLibTest {
 
-    private val EPS = 1e-3f // general float tolerance
+    private companion object {
 
-    // --- Simple BMI checks ----------------------------------------------------
+        @JvmStatic
+        private val SUPPORTS = Supports(
+            builder = ::TrisaBodyAnalyzeLib,
+            waterPercent = true,
+            bodyFatPercent = true,
+            musclePercent = true,
+            boneMassKg = true,
+            extras = mapOf("bmi" to { bmi })
+        )
+
+        // --- Snapshots (pre-recorded from current Java implementation) -------
+        // <editor-fold defaultstate="collapsed" desc="private val FIXTURES = mapOf(...)">
+        @JvmStatic
+        private val FIXTURES = mapOf(
+            "male_30y_180cm_80kg_imp500" to Snapshot(
+                age = 30,
+                heightCm = 180f,
+                isMale = true,
+                weightKg = 80f,
+                impedanceOhms = 500f,
+                bmi = 24.691359f,
+                waterPercent = 57.031845f,
+                bodyFatPercent = 23.186619f,
+                musclePercent = 40.767307f,
+                boneMassKg = 4.254889f
+            ),
+            "female_28y_165cm_60kg_imp520" to Snapshot(
+                age = 28,
+                heightCm = 165f,
+                isMale = false,
+                weightKg = 60f,
+                impedanceOhms = 520f,
+                bmi = 22.038567f,
+                waterPercent = 51.246567f,
+                bodyFatPercent = 27.63467f,
+                musclePercent = 32.776436f,
+                boneMassKg = 4.575968f
+            ),
+            "male_45y_175cm_95kg_imp430" to Snapshot(
+                age = 45,
+                heightCm = 175f,
+                isMale = true,
+                weightKg = 95f,
+                impedanceOhms = 430f,
+                bmi = 31.020409f,
+                waterPercent = 51.385693f,
+                bodyFatPercent = 34.484245f,
+                musclePercent = 30.524948f,
+                boneMassKg = 3.1716952f
+            ),
+            "female_55y_160cm_50kg_imp600" to Snapshot(
+                age = 55,
+                heightCm = 160f,
+                isMale = false,
+                weightKg = 50f,
+                impedanceOhms = 600f,
+                bmi = 19.53125f,
+                waterPercent = 55.407524f,
+                bodyFatPercent = 26.659752f,
+                musclePercent = 27.356312f,
+                boneMassKg = 3.8092093f
+            ),
+            "male_20y_190cm_65kg_imp480" to Snapshot(
+                age = 20,
+                heightCm = 190f,
+                isMale = true,
+                weightKg = 65f,
+                impedanceOhms = 480f,
+                bmi = 18.00554f,
+                waterPercent = 64.203964f,
+                bodyFatPercent = 10.668964f,
+                musclePercent = 49.972504f,
+                boneMassKg = 5.2273664f
+            ),
+            "female_22y_155cm_55kg_imp510" to Snapshot(
+                age = 22,
+                heightCm = 155f,
+                isMale = false,
+                weightKg = 55f,
+                impedanceOhms = 510f,
+                bmi = 22.89282f,
+                waterPercent = 49.936302f,
+                bodyFatPercent = 28.405312f,
+                musclePercent = 33.747982f,
+                boneMassKg = 4.713689f
+            ),
+            "male_35y_175cm_85kg_imp200" to Snapshot(
+                age = 35,
+                heightCm = 175f,
+                isMale = true,
+                weightKg = 85f,
+                impedanceOhms = 200f,
+                bmi = 27.755102f,
+                waterPercent = 56.290474f,
+                bodyFatPercent = 25.228241f,
+                musclePercent = 38.142612f,
+                boneMassKg = 3.9760387f
+            ),
+            "female_40y_170cm_70kg_imp800" to Snapshot(
+                age = 40,
+                heightCm = 170f,
+                isMale = false,
+                weightKg = 70f,
+                impedanceOhms = 800f,
+                bmi = 24.221453f,
+                waterPercent = 47.909973f,
+                bodyFatPercent = 35.216103f,
+                musclePercent = 27.238312f,
+                boneMassKg = 3.7960525f
+            )
+        )
+        // </editor-fold>
+
+    }
+
+    // --- Generic / property-based tests --------------------------------------
+
+    @Test
+    fun `snapshots match expected outputs`() {
+        SUPPORTS.testAll(FIXTURES)
+    }
+
+    @Test
+    fun `outputs are finite for typical inputs`() {
+        SUPPORTS.assertOutputs(30, 180f, true, 80f, 500f)
+    }
+
+    // --- Simple BMI checks ---------------------------------------------------
 
     @Test
     fun bmi_isComputedCorrectly_forTypicalMale() {
-        val lib = TrisaBodyAnalyzeLib(1, 30, 180f)
-        val weight = 80f
-
-        val bmi = lib.getBMI(weight)
-
-        assertThat(bmi).isWithin(EPS).of(24.691358f)
+        val bmi = TrisaBodyAnalyzeLib(user(30, 180f, true), 80f, 1f).bmi
+        assertThat(bmi).isWithin(EPS).of(24.691358.toFloat())
     }
 
     @Test
     fun bmi_monotonicity_weightUp_heightSame_increases() {
-        val lib = TrisaBodyAnalyzeLib(0, 28, 165f)
-        val bmi1 = lib.getBMI(60f)
-        val bmi2 = lib.getBMI(65f)
-        assertThat(bmi2).isGreaterThan(bmi1)
+        val lib = InstanceBuilder(28, 165f, false, null, ::TrisaBodyAnalyzeLib)
+        val bmiLow = lib(60f, 1f).bmi
+        val bmiHigh = lib(65f, 1f).bmi
+
+        assertThat(bmiHigh).isGreaterThan(bmiLow)
     }
 
     @Test
     fun bmi_monotonicity_heightUp_weightSame_decreases() {
-        val shorty = TrisaBodyAnalyzeLib(1, 35, 170f)
-        val tall   = TrisaBodyAnalyzeLib(1, 35, 185f)
-        val weight = 80f
-        assertThat(tall.getBMI(weight)).isLessThan(shorty.getBMI(weight))
+        fun bmi(heightCm: Float) =
+            TrisaBodyAnalyzeLib(user(35, heightCm, true), 80f, 1f).bmi
+
+        assertThat(bmi(185f)).isLessThan(bmi(170f))
     }
 
     // --- Behavioral properties -----------------------------------------------
 
     @Test
-    fun impedance_effects_haveExpectedDirections() {
-        val male = TrisaBodyAnalyzeLib(1, 30, 180f)
-        val female = TrisaBodyAnalyzeLib(0, 30, 165f)
+    fun `impedance effects have expected directions (male)`() {
+        val lib = InstanceBuilder(30, 180f, true, null, ::TrisaBodyAnalyzeLib)
+        val impLow = lib(70f, 300f)
+        val impHigh = lib(70f, 700f)
 
-        val w = 70f
-        val impLow = 300f
-        val impHigh = 700f
+        assertThat(impHigh.waterPercent).isLessThan(impLow.waterPercent)
+        assertThat(impHigh.musclePercent).isLessThan(impLow.musclePercent)
+        assertThat(impHigh.boneMassKg).isLessThan(impLow.boneMassKg)
+        assertThat(impHigh.bodyFatPercent).isGreaterThan(impLow.bodyFatPercent)
+    }
 
-        assertThat(male.getWater(w, impHigh)).isLessThan(male.getWater(w, impLow))
-        assertThat(male.getMuscle(w, impHigh)).isLessThan(male.getMuscle(w, impLow))
-        assertThat(male.getBone(w, impHigh)).isLessThan(male.getBone(w, impLow))
-        assertThat(male.getFat(w, impHigh)).isGreaterThan(male.getFat(w, impLow))
+    @Test
+    fun `impedance effects have expected directions (female)`() {
+        val lib = InstanceBuilder(30, 165f, false, null, ::TrisaBodyAnalyzeLib)
+        val impLow = lib(70f, 300f)
+        val impHigh = lib(70f, 700f)
 
-        assertThat(female.getWater(w, impHigh)).isLessThan(female.getWater(w, impLow))
-        assertThat(female.getMuscle(w, impHigh)).isLessThan(female.getMuscle(w, impLow))
-        assertThat(female.getBone(w, impHigh)).isLessThan(female.getBone(w, impLow))
-        assertThat(female.getFat(w, impHigh)).isGreaterThan(female.getFat(w, impLow))
+        assertThat(impHigh.waterPercent).isLessThan(impLow.waterPercent)
+        assertThat(impHigh.musclePercent).isLessThan(impLow.musclePercent)
+        assertThat(impHigh.boneMassKg).isLessThan(impLow.boneMassKg)
+        assertThat(impHigh.bodyFatPercent).isGreaterThan(impLow.bodyFatPercent)
     }
 
     @Test
     fun sex_flag_changes_branch_outputs() {
-        val male = TrisaBodyAnalyzeLib(1, 30, 175f)
-        val female = TrisaBodyAnalyzeLib(0, 30, 175f)
-        val w = 70f
-        val imp = 500f
+        fun lib(isMale: Boolean) =
+            TrisaBodyAnalyzeLib(user(30, 175f, isMale), 70f, 500f)
 
-        assertThat(male.getWater(w, imp)).isNotEqualTo(female.getWater(w, imp))
-        assertThat(male.getFat(w, imp)).isNotEqualTo(female.getFat(w, imp))
-        assertThat(male.getMuscle(w, imp)).isNotEqualTo(female.getMuscle(w, imp))
-        assertThat(male.getBone(w, imp)).isNotEqualTo(female.getBone(w, imp))
+        val male = lib(true)
+        val female = lib(false)
+
+        assertThat(male.waterPercent).isNotEqualTo(female.waterPercent)
+        assertThat(male.musclePercent).isNotEqualTo(female.musclePercent)
+        assertThat(male.boneMassKg).isNotEqualTo(female.boneMassKg)
+        assertThat(male.bodyFatPercent).isNotEqualTo(female.bodyFatPercent)
     }
 
-    @Test
-    fun outputs_areFinite_forTypicalInputs() {
-        val lib = TrisaBodyAnalyzeLib(1, 30, 180f)
-        val w = 80f
-        val imp = 500f
-
-        val nums = listOf(
-            lib.getBMI(w),
-            lib.getWater(w, imp),
-            lib.getFat(w, imp),
-            lib.getMuscle(w, imp),
-            lib.getBone(w, imp)
-        )
-
-        nums.forEach { v ->
-            assertThat(v.isNaN()).isFalse()
-            assertThat(v.isInfinite()).isFalse()
-        }
-    }
-
-    // --- Regression fixtures -------------------------------------------------
-
-    @Test
-    fun regression_male_30y_180cm_80kg_imp500() {
-        val lib = TrisaBodyAnalyzeLib(1, 30, 180f)
-        val w = 80f
-        val imp = 500f
-        val r = Fixture(
-            bmi = 24.691359f,
-            water = 57.031845f,
-            fat = 23.186619f,
-            muscle = 40.767307f,
-            bone = 4.254889f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    @Test
-    fun regression_female_28y_165cm_60kg_imp520() {
-        val lib = TrisaBodyAnalyzeLib(0, 28, 165f)
-        val w = 60f
-        val imp = 520f
-        val r = Fixture(
-            bmi = 22.038567f,
-            water = 51.246567f,
-            fat = 27.63467f,
-            muscle = 32.776436f,
-            bone = 4.575968f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    @Test
-    fun regression_male_45y_175cm_95kg_imp430() {
-        val lib = TrisaBodyAnalyzeLib(1, 45, 175f)
-        val w = 95f
-        val imp = 430f
-        val r = Fixture(
-            bmi = 31.020409f,
-            water = 51.385693f,
-            fat = 34.484245f,
-            muscle = 30.524948f,
-            bone = 3.1716952f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    @Test
-    fun regression_female_55y_160cm_50kg_imp600() {
-        val lib = TrisaBodyAnalyzeLib(0, 55, 160f)
-        val w = 50f
-        val imp = 600f
-        val r = Fixture(
-            bmi = 19.53125f,
-            water = 55.407524f,
-            fat = 26.659752f,
-            muscle = 27.356312f,
-            bone = 3.8092093f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    @Test
-    fun regression_male_20y_190cm_65kg_imp480() {
-        val lib = TrisaBodyAnalyzeLib(1, 20, 190f)
-        val w = 65f
-        val imp = 480f
-        val r = Fixture(
-            bmi = 18.00554f,
-            water = 64.203964f,
-            fat = 10.668964f,
-            muscle = 49.972504f,
-            bone = 5.2273664f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    @Test
-    fun regression_female_22y_155cm_55kg_imp510() {
-        val lib = TrisaBodyAnalyzeLib(0, 22, 155f)
-        val w = 55f
-        val imp = 510f
-        val r = Fixture(
-            bmi = 22.89282f,
-            water = 49.936302f,
-            fat = 28.405312f,
-            muscle = 33.747982f,
-            bone = 4.713689f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    @Test
-    fun regression_male_35y_175cm_85kg_imp200() {
-        val lib = TrisaBodyAnalyzeLib(1, 35, 175f)
-        val w = 85f
-        val imp = 200f
-        val r = Fixture(
-            bmi = 27.755102f,
-            water = 56.290474f,
-            fat = 25.228241f,
-            muscle = 38.142612f,
-            bone = 3.9760387f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    @Test
-    fun regression_female_40y_170cm_70kg_imp800() {
-        val lib = TrisaBodyAnalyzeLib(0, 40, 170f)
-        val w = 70f
-        val imp = 800f
-        val r = Fixture(
-            bmi = 24.221453f,
-            water = 47.909973f,
-            fat = 35.216103f,
-            muscle = 27.238312f,
-            bone = 3.7960525f
-        )
-        checkFixture(lib, w, imp, r)
-    }
-
-    // --- Helper --------------------------------------------------------------
-
-    private fun checkFixture(lib: TrisaBodyAnalyzeLib, w: Float, imp: Float, r: Fixture) {
-        assertThat(lib.getBMI(w)).isWithin(EPS).of(r.bmi)
-        assertThat(lib.getWater(w, imp)).isWithin(EPS).of(r.water)
-        assertThat(lib.getFat(w, imp)).isWithin(EPS).of(r.fat)
-        assertThat(lib.getMuscle(w, imp)).isWithin(EPS).of(r.muscle)
-        assertThat(lib.getBone(w, imp)).isWithin(EPS).of(r.bone)
-    }
-
-    private data class Fixture(
-        val bmi: Float,
-        val water: Float,
-        val fat: Float,
-        val muscle: Float,
-        val bone: Float
-    )
 }

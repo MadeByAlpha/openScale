@@ -111,8 +111,31 @@ abstract class ScaleDeviceHandler {
 
     companion object {
         // Pseudo UUIDs for Classic/SPP
-        val CLASSIC_DATA_UUID: UUID =
-            UUID.fromString("00000000-0000-0000-0000-00000000C1A5")
+        @JvmStatic
+        val CLASSIC_DATA_UUID: UUID = UUID.fromString("00000000-0000-0000-0000-00000000C1A5")
+
+        /** Helper to build a 16-bit Bluetooth Base UUID (e.g., `uuid16(0xFFE4)`). */
+        @JvmStatic
+        fun uuid16(short: Int): UUID =
+            UUID.fromString(String.format("0000%04x-0000-1000-8000-00805f9b34fb", short))
+
+        @JvmStatic
+        fun u16le(b: ByteArray, offset: Int): Int {
+            val lo = b[offset].toInt() and 0xFF
+            val hi = b[offset + 1].toInt() and 0xFF
+            return (hi shl 8) or lo
+        }
+
+        @JvmStatic
+        fun hexToBytes(s: String): ByteArray {
+            val clean = s.replace(" ", "").replace("-", "")
+            val out = ByteArray(clean.length / 2)
+            for (i in out.indices) {
+                val idx = i * 2
+                out[i] = clean.substring(idx, idx + 2).toInt(16).toByte()
+            }
+            return out
+        }
     }
     /**
      * Identify whether this handler supports the given scanned device.
@@ -267,10 +290,6 @@ abstract class ScaleDeviceHandler {
     protected fun getPeripheral(): BluetoothPeripheral? {
         return transport?.getPeripheral()
     }
-
-    /** Helper to build a 16-bit Bluetooth Base UUID (e.g., `uuid16(0xFFE4)`). */
-    protected fun uuid16(short: Int): UUID =
-        UUID.fromString(String.format("0000%04x-0000-1000-8000-00805f9b34fb", short))
 
     protected fun resolveString(@StringRes resId: Int, vararg args: Any): String =
         callbacks?.resolveString(resId, *args) ?: "res:$resId"

@@ -21,6 +21,7 @@ import com.health.openscale.core.bluetooth.data.ScaleMeasurement
 import com.health.openscale.core.bluetooth.data.ScaleUser
 import com.health.openscale.core.bluetooth.libs.TrisaBodyAnalyzeLib
 import com.health.openscale.core.bluetooth.libs.YunmaiLib
+import com.health.openscale.core.bluetooth.libs.YunmaiLib.Companion.isYunmaiActive
 import com.health.openscale.core.service.ScannedDeviceInfo
 import com.health.openscale.core.utils.LogManager
 import java.util.Calendar
@@ -95,12 +96,20 @@ class ESCS20MHandler : ScaleDeviceHandler() {
         private const val PHASE_WAIT_HIST_ACK    = 1  // sent 0x96 pre-meas, waiting for 0x16
         private const val PHASE_MEASURING        = 2  // sent 0x90, receiving 0x14 frames
         private const val PHASE_BIA_DONE         = 3  // received 0x18, sent post-BIA 0x96 × 2
-    }
 
-    // GATT service / characteristic UUIDs for the 0x1A10 Lefu service
-    private val SVC_MAIN     = uuid16(0x1A10)
-    private val CHR_CUR_TIME = uuid16(0x2A11)  // write commands here
-    private val CHR_RESULTS  = uuid16(0x2A10)  // receive notifications here
+        // GATT service / characteristic UUIDs for the 0x1A10 Lefu service
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_MAIN     = uuid16(0x1A10)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_CUR_TIME = uuid16(0x2A11)  // write commands here
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_RESULTS  = uuid16(0x2A10)  // receive notifications here
+    }
 
     // ── Session state ─────────────────────────────────────────────────────────
 
@@ -403,7 +412,7 @@ class ESCS20MHandler : ScaleDeviceHandler() {
         val day      = cal.get(Calendar.DAY_OF_MONTH)
         val heightMm = (user.bodyHeight * 10f).toInt()  // cm → mm, big-endian uint16
         val sexByte  = if (user.gender.isMale()) 0x11 else 0x21
-        val modeByte = if (YunmaiLib.toYunmaiActivityLevel(user.activityLevel) == 1) 0x6A else 0xAA
+        val modeByte = if (user.activityLevel.isYunmaiActive()) 0x6A else 0xAA
         val w        = weightRaw.coerceIn(0, 0xFFFF)    // guard against u16 overflow in payload
         val payload  = byteArrayOf(
             sexByte.toByte(),
@@ -452,16 +461,14 @@ class ESCS20MHandler : ScaleDeviceHandler() {
             // Renpho's reported values than YunmaiLib for this scale's resistance range. The QN
             // resistance-to-impedance conversion from QNHandler is applied first, as QN scales
             // share the same Lefu/Yunmai hardware lineage as this scale.
-            val sex  = if (user.gender.isMale()) 1 else 0
-            val calc = TrisaBodyAnalyzeLib(sex, user.age, user.bodyHeight)
             val imp  = if (biaResistance < 410) 3.0f else 0.3f * (biaResistance - 400f)
-            val fat  = calc.getFat(weightKg, imp)
+            val calc = TrisaBodyAnalyzeLib(user, weightKg, imp)
             acc.impedance = biaResistance.toDouble()
-            acc.fat       = fat
-            acc.muscle    = calc.getMuscle(weightKg, imp)
-            acc.water     = calc.getWater(weightKg, imp)
-            acc.bone      = calc.getBone(weightKg, imp)
-            acc.lbm       = weightKg * (100f - fat) / 100f
+            acc.fat       = calc.bodyFatPercent
+            acc.muscle    = calc.musclePercent
+            acc.water     = calc.waterPercent
+            acc.bone      = calc.boneMassKg
+            acc.lbm       = weightKg * (100f - acc.fat) / 100f
             LogManager.i(TAG, "Body composition: fat=${acc.fat}% muscle=${acc.muscle}%")
         }
 

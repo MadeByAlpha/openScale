@@ -72,21 +72,6 @@ import kotlin.math.min
  */
 class HuaweiAhCh100Handler : ScaleDeviceHandler() {
 
-    // --- Identifiers --------------------------------------------------------
-
-    private val SERVICE = uuid16(0xFAA0)
-    private val CHAR_TX = uuid16(0xFAA1) // host -> scale: write
-    private val CHAR_RX = uuid16(0xFAA2) // scale -> host: notify
-
-    /**
-     * BLE advertisement name -> UI display name. Both products use the same
-     * Chipsea CST34M97 hardware, so one handler serves both.
-     */
-    private val supportedAdverts = mapOf(
-        "AH100" to "Huawei AH100",
-        "CH100" to "Huawei CH100",
-    )
-
     // We need the scale MAC for the XOR obfuscation. Cache it from
     // ScannedDeviceInfo.address as soon as supportFor() approves.
     private var sessionMac: String? = null
@@ -527,6 +512,17 @@ class HuaweiAhCh100Handler : ScaleDeviceHandler() {
      */
     internal companion object {
 
+        /**
+         * BLE advertisement name -> UI display name. Both products use the same
+         * Chipsea CST34M97 hardware, so one handler serves both.
+         */
+        @JvmStatic
+        @JvmSynthetic
+        private val supportedAdverts = mapOf(
+            "AH100" to "Huawei AH100",
+            "CH100" to "Huawei CH100",
+        )
+
         // ---------- Hard-coded keys / IV (v2.5.4) ------------------------------
         //
         // ByteArray is mutable so we keep the canonical bytes in private backing
@@ -534,11 +530,28 @@ class HuaweiAhCh100Handler : ScaleDeviceHandler() {
         // they receive; mis-use by tests / future contributors cannot corrupt
         // the values for subsequent calls.
 
+        @JvmStatic
+        @JvmSynthetic
         private val INITIAL_KEY_BYTES: ByteArray =
             hexToBytes("3D A2 78 4A FB 87 B1 2A 98 0F DE 34 56 73 21 56")
 
+        @JvmStatic
+        @JvmSynthetic
         private val INITIAL_IV_BYTES: ByteArray =
             hexToBytes("4E F7 64 32 2F DA 76 32 12 3D EB 87 90 FE A2 19")
+
+        // --- Identifiers --------------------------------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE = uuid16(0xFAA0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_TX = uuid16(0xFAA1) // host -> scale: write
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_RX = uuid16(0xFAA2) // scale -> host: notify
 
         /**
          * AES-128 key fragment. Returns a fresh copy on every access:
@@ -780,19 +793,8 @@ class HuaweiAhCh100Handler : ScaleDeviceHandler() {
 
         // ---------- Internal utils -------------------------------------------
 
-        fun u16le(b: ByteArray, off: Int): Int =
-            (b[off].toInt() and 0xFF) or ((b[off + 1].toInt() and 0xFF) shl 8)
-
         fun le16(v: Int): ByteArray =
             byteArrayOf((v and 0xFF).toByte(), ((v shr 8) and 0xFF).toByte())
-
-        fun hexToBytes(s: String): ByteArray {
-            val clean = s.replace(" ", "").replace(":", "").replace("-", "")
-            val even = if (clean.length % 2 == 0) clean else "0$clean"
-            return ByteArray(even.length / 2) { i ->
-                even.substring(i * 2, i * 2 + 2).toInt(16).toByte()
-            }
-        }
 
         /** Convert "AA:BB:CC:DD:EE:FF" (or no separators) to 6 bytes in display order. */
         fun macStringToBytes(mac: String): ByteArray {

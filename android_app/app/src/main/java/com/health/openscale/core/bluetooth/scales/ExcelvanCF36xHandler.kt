@@ -41,10 +41,20 @@ import kotlin.math.roundToInt
  */
 class ExcelvanCF36xHandler : ScaleDeviceHandler() {
 
-    // --- GATT UUIDs (Bluetooth Base UUID) -------------------------------------
-    private val SVC get() = uuid16(0xFFF0)
-    private val CHAR_WRITE get() = uuid16(0xFFF1)
-    private val CHAR_NOTIFY get() = uuid16(0xFFF4)
+    private companion object {
+        // --- GATT UUIDs (Bluetooth Base UUID) -------------------------------------
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC = uuid16(0xFFF0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_WRITE = uuid16(0xFFF1)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_NOTIFY = uuid16(0xFFF4)
+    }
 
     // Last full frame we processed, to ignore duplicates
     private var lastFrame: ByteArray? = null

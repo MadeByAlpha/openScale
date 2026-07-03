@@ -79,14 +79,22 @@ import java.util.UUID
  */
 class CultSmartScaleProHandler : ScaleDeviceHandler() {
 
-    // ── GATT UUIDs ────────────────────────────────────────────────────────────
-    private val SERVICE_UUID    get() = uuid16(0xFFF0)
-    private val CHR_NOTIFY_UUID get() = uuid16(0xFFF4)
+    private companion object {
 
-    // ── Packet type identifiers ───────────────────────────────────────────────
-    private val TYPE_LIVE_WEIGHT: Byte = 0xCF.toByte()
-    private val TYPE_IMPEDANCE  : Byte = 0xBE.toByte()
-    private val TYPE_BODY_COMP  : Byte = 0xDF.toByte()
+        // ── GATT UUIDs ────────────────────────────────────────────────────────────
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE_UUID = uuid16(0xFFF0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_NOTIFY_UUID = uuid16(0xFFF4)
+
+        // ── Packet type identifiers ───────────────────────────────────────────────
+        private const val TYPE_LIVE_WEIGHT: Byte = 0xCF.toByte()
+        private const val TYPE_IMPEDANCE  : Byte = 0xBE.toByte()
+        private const val TYPE_BODY_COMP  : Byte = 0xDF.toByte()
+
+    }
 
     // ── Accumulated state across packets ─────────────────────────────────────
     private var pendingWeight      = 0f
@@ -262,20 +270,14 @@ class CultSmartScaleProHandler : ScaleDeviceHandler() {
         }
 
         if (withBodyComp && user != null && pendingImpedance > 0.0) {
-            val lib = StandardImpedanceLib(
-                gender     = user.gender,
-                age        = user.age,
-                weightKg   = pendingWeight.toDouble(),
-                heightM    = user.bodyHeight / 100.0,
-                impedance  = pendingImpedance
-            )
+            val lib = StandardImpedanceLib(user, pendingWeight, pendingImpedance.toFloat())
 
-            m.fat        = lib.totalFatPercentage.toFloat().coerceIn(0f, 75f)
-            m.water      = lib.totalBodyWaterPercentage.toFloat().coerceIn(0f, 80f)
-            m.muscle     = lib.skeletalMuscleMassKg.toFloat().coerceIn(0f, 100f)
-            m.bone       = lib.boneMassKg.toFloat().coerceIn(0f, 10f)
-            m.lbm        = lib.fatFreeMassKg.toFloat().coerceIn(0f, 150f)
-            m.bmr        = lib.basalMetabolicRate.toFloat().coerceIn(0f, 5000f)
+            m.fat        = lib.bodyFatPercent.coerceIn(0f, 75f)
+            m.water      = lib.waterPercent.coerceIn(0f, 80f)
+            m.muscle     = lib.musclePercent.coerceIn(0f, 100f)
+            m.bone       = lib.boneMassKg.coerceIn(0f, 10f)
+            m.lbm        = lib.lbmKg.coerceIn(0f, 150f)
+            m.bmr        = lib.bmrKcal.coerceIn(0f, 5000f)
             m.impedance  = pendingImpedance
 
             logI(

@@ -13,7 +13,11 @@ import java.util.Date
 import java.util.Locale
 
 class EufyC20Handler : ScaleDeviceHandler() {
-    private val MANUFACTURER_ID = 48228
+
+    private companion object {
+        private const val MANUFACTURER_ID = 48228
+    }
+
     private val deviceSupport = DeviceSupport(
         displayName = "Eufy C20 (T9130)",
         capabilities = setOf(
@@ -101,20 +105,18 @@ class EufyC20Handler : ScaleDeviceHandler() {
             // merge m into global stored (use local alias s, no !!)
             s.mergeWith(m)
             if (m.hasWeight() && (s.weight != m.weight)) s.weight = m.weight
-            
+
             // compute composition if possible
             if (s.hasWeight() && s.impedance > 0.0) {
-                val sex = if (user.gender == GenderType.MALE) 1 else 0
-                val lib = MiScaleLib(sex, user.age, user.bodyHeight)
-                val wf = s.weight
-                s.fat = lib.getBodyFat(wf, s.impedance.toFloat())
-                s.water = lib.getWater(wf, s.impedance.toFloat())
-                s.muscle = lib.getMuscle(wf, s.impedance.toFloat())
-                s.bone = lib.getBoneMass(wf, s.impedance.toFloat())
-                s.lbm = lib.getLBM(wf, s.impedance.toFloat())
-                s.visceralFat = lib.getVisceralFat(wf)
+                val lib = MiScaleLib(user, s.weight, s.impedance.toFloat())
+                s.fat = lib.bodyFatPercent
+                s.water = lib.waterPercent
+                s.muscle = lib.musclePercent
+                s.bone = lib.boneMassKg
+                s.lbm = lib.lbmKg
+                s.visceralFat = lib.visceralFatPercent
             }
-            
+
             // if full measurement -> clear stored and stop
             return if (s.hasWeight() && s.impedance > 0.0 && s.heartRate > 0) {
                 s.dateTime = Date()

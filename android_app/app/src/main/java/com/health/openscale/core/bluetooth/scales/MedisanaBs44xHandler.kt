@@ -27,17 +27,35 @@ import kotlin.math.abs
 
 class MedisanaBs44xHandler : ScaleDeviceHandler() {
 
-    // GATT
-    private val SERVICE: UUID     = uuid16(0x78B2)
-    private val CHR_WEIGHT: UUID  = uuid16(0x8A21) // Indicate
-    private val CHR_FEATURE: UUID = uuid16(0x8A22) // Indicate
-    private val CHR_CMD: UUID     = uuid16(0x8A81) // Write
-    private val CHR_CUSTOM5: UUID = uuid16(0x8A82) // Indicate (optional)
+    private companion object {
+        // GATT
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID     = uuid16(0x78B2)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_WEIGHT: UUID  = uuid16(0x8A21) // Indicate
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_FEATURE: UUID = uuid16(0x8A22) // Indicate
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_CMD: UUID     = uuid16(0x8A81) // Write
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_CUSTOM5: UUID = uuid16(0x8A82) // Indicate (optional)
+    }
 
     // Epoch detection
-    private enum class EpochMode { UNIX, FROM_2010 }
-    private val SCALE_EPOCH_OFFSET = 1262304000L // secs since 1970 to 2010-01-01
-    private val KEY_EPOCH_MODE = "epochMode"     // persisted per device via DriverSettings
+    private enum class EpochMode {
+        UNIX,
+        FROM_2010;
+
+        companion object {
+            const val OFFSET_2010 = 1262304000L // secs since 1970 to 2010-01-01
+            const val KEY = "epochMode"     // persisted per device via DriverSettings
+        }
+    }
 
     private var epochMode: EpochMode? = null
     private var predictedFromName: EpochMode? = null
@@ -98,7 +116,7 @@ class MedisanaBs44xHandler : ScaleDeviceHandler() {
         // Send "time" command: 0x02 + <timestamp LE>
         val nowSec = System.currentTimeMillis() / 1000
         val tsForScale = when (epochMode) {
-            EpochMode.FROM_2010 -> nowSec - SCALE_EPOCH_OFFSET
+            EpochMode.FROM_2010 -> nowSec - EpochMode.OFFSET_2010
             else -> nowSec
         }
         val ts = int32Le(tsForScale)
@@ -173,7 +191,7 @@ class MedisanaBs44xHandler : ScaleDeviceHandler() {
         fun nearNow(x: Long) = abs(x - now) <= near
 
         val unixCandidate = tsRaw
-        val epoch2010Candidate = tsRaw + SCALE_EPOCH_OFFSET
+        val epoch2010Candidate = tsRaw + EpochMode.OFFSET_2010
 
         val mode = epochMode
         return when {
@@ -213,14 +231,14 @@ class MedisanaBs44xHandler : ScaleDeviceHandler() {
     }
 
     private fun loadEpochMode(): EpochMode? =
-        when (settingsGetString(KEY_EPOCH_MODE, null)) {
+        when (settingsGetString(EpochMode.KEY, null)) {
             "unix" -> EpochMode.UNIX
             "2010" -> EpochMode.FROM_2010
             else   -> null
         }
 
     private fun saveEpochMode(mode: EpochMode) {
-        settingsPutString(KEY_EPOCH_MODE, if (mode == EpochMode.UNIX) "unix" else "2010")
+        settingsPutString(EpochMode.KEY, if (mode == EpochMode.UNIX) "unix" else "2010")
         logI("Detected epoch mode: $mode (persisted)")
     }
 

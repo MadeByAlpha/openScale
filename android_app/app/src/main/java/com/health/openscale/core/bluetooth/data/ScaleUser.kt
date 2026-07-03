@@ -23,7 +23,7 @@ import com.health.openscale.core.data.WeightUnit
 import java.util.Calendar
 import java.util.Date
 
-data class ScaleUser (
+data class ScaleUser(
     var id: Int = 0,
     var userName: String = "",
     var birthday: Date = Date(),

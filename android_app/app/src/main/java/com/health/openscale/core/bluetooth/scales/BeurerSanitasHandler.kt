@@ -48,54 +48,6 @@ class BeurerSanitasHandler : ScaleDeviceHandler() {
 
     enum class DeviceType { BEURER_BF700_800_RT_LIBRA, BEURER_BF710, SANITAS_SBF70_70 }
 
-    // UUIDs
-    private val SERVICE: UUID = uuid16(0xFFE0)
-    private val CHR: UUID = uuid16(0xFFE1)
-
-    // Step machine: negative means "not waiting"; >=0 means "expect data in that step"
-    private var waitForDataInStep: Int = -1
-    private var step: Int = 0
-
-    // Device flavor (set in supportFor based on name)
-    private var deviceType: DeviceType? = null
-
-    // Start byte and "alternative start byte" masks
-    private var startByte: Byte = 0x00.toByte()
-
-    // Alternative-start identifiers (low nibble toggled on the startByte)
-    private val ID_START_NIBBLE_INIT = 6
-    private val ID_START_NIBBLE_CMD = 7
-    private val ID_START_NIBBLE_SET_TIME = 9
-    private val ID_START_NIBBLE_DISCONNECT = 10
-
-    // Commands
-    private val CMD_SET_UNIT: Byte = 0x4d.toByte()
-    private val CMD_SCALE_STATUS: Byte = 0x4f.toByte()
-
-    private val CMD_USER_ADD: Byte = 0x31.toByte()
-    private val CMD_USER_DELETE: Byte = 0x32.toByte()
-    private val CMD_USER_LIST: Byte = 0x33.toByte()
-    private val CMD_USER_INFO: Byte = 0x34.toByte()
-    private val CMD_USER_UPDATE: Byte = 0x35.toByte()
-    private val CMD_USER_DETAILS: Byte = 0x36.toByte()
-
-    private val CMD_DO_MEASUREMENT: Byte = 0x40.toByte()
-    private val CMD_GET_SAVED_MEASUREMENTS: Byte = 0x41.toByte()
-    private val CMD_SAVED_MEASUREMENT: Byte = 0x42.toByte()
-    private val CMD_DELETE_SAVED_MEASUREMENTS: Byte = 0x43.toByte()
-
-    private val CMD_GET_UNKNOWN_MEASUREMENTS: Byte = 0x46.toByte()
-    private val CMD_UNKNOWN_MEASUREMENT_INFO: Byte = 0x47.toByte()
-    private val CMD_ASSIGN_UNKNOWN_MEASUREMENT: Byte = 0x4b.toByte()
-    private val CMD_UNKNOWN_MEASUREMENT: Byte = 0x4c.toByte()
-    private val CMD_DELETE_UNKNOWN_MEASUREMENT: Byte = 0x49.toByte()
-
-    private val CMD_WEIGHT_MEASUREMENT: Byte = 0x58.toByte()
-    private val CMD_MEASUREMENT: Byte = 0x59.toByte()
-
-    private val CMD_SCALE_ACK: Byte = 0xf0.toByte()
-    private val CMD_APP_ACK: Byte = 0xf1.toByte()
-
     /** Remote user descriptor projected from the scale. */
     private data class RemoteUser(
         val remoteUserId: Long,
@@ -111,6 +63,63 @@ class BeurerSanitasHandler : ScaleDeviceHandler() {
         var storedUid: Long = -1,
         var candidateUid: Long = -1
     )
+
+    @Suppress("unused")
+    private companion object {
+
+        // UUIDs
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFE0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR: UUID = uuid16(0xFFE1)
+
+        // Alternative-start identifiers (low nibble toggled on the startByte)
+        private const val ID_START_NIBBLE_INIT = 6
+        private const val ID_START_NIBBLE_CMD = 7
+        private const val ID_START_NIBBLE_SET_TIME = 9
+        private const val ID_START_NIBBLE_DISCONNECT = 10
+
+        // Commands
+        private const val CMD_SET_UNIT: Byte = 0x4d.toByte()
+        private const val CMD_SCALE_STATUS: Byte = 0x4f.toByte()
+
+        private const val CMD_USER_ADD: Byte = 0x31.toByte()
+        private const val CMD_USER_DELETE: Byte = 0x32.toByte()
+        private const val CMD_USER_LIST: Byte = 0x33.toByte()
+        private const val CMD_USER_INFO: Byte = 0x34.toByte()
+        private const val CMD_USER_UPDATE: Byte = 0x35.toByte()
+        private const val CMD_USER_DETAILS: Byte = 0x36.toByte()
+
+        private const val CMD_DO_MEASUREMENT: Byte = 0x40.toByte()
+        private const val CMD_GET_SAVED_MEASUREMENTS: Byte = 0x41.toByte()
+        private const val CMD_SAVED_MEASUREMENT: Byte = 0x42.toByte()
+        private const val CMD_DELETE_SAVED_MEASUREMENTS: Byte = 0x43.toByte()
+
+        private const val CMD_GET_UNKNOWN_MEASUREMENTS: Byte = 0x46.toByte()
+        private const val CMD_UNKNOWN_MEASUREMENT_INFO: Byte = 0x47.toByte()
+        private const val CMD_ASSIGN_UNKNOWN_MEASUREMENT: Byte = 0x4b.toByte()
+        private const val CMD_UNKNOWN_MEASUREMENT: Byte = 0x4c.toByte()
+        private const val CMD_DELETE_UNKNOWN_MEASUREMENT: Byte = 0x49.toByte()
+
+        private const val CMD_WEIGHT_MEASUREMENT: Byte = 0x58.toByte()
+        private const val CMD_MEASUREMENT: Byte = 0x59.toByte()
+
+        private const val CMD_SCALE_ACK: Byte = 0xf0.toByte()
+        private const val CMD_APP_ACK: Byte = 0xf1.toByte()
+    }
+
+    // Step machine: negative means "not waiting"; >=0 means "expect data in that step"
+    private var waitForDataInStep: Int = -1
+    private var step: Int = 0
+
+    // Device flavor (set in supportFor based on name)
+    private var deviceType: DeviceType? = null
+
+    // Start byte and "alternative start byte" masks
+    private var startByte: Byte = 0x00.toByte()
 
     private val remoteUsers = mutableListOf<RemoteUser>()
     private var currentRemoteUser: RemoteUser? = null

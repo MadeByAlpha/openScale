@@ -37,11 +37,21 @@ class SanitasSbf72Handler : StandardWeightProfileHandler() {
     private val scaleUserList = mutableListOf<ScaleUser>()
 
     companion object {
-        val SVC_SBF72_CUSTOM: UUID by lazy { UUID.fromString("0000ffff-0000-1000-8000-00805f9b34fb") }
-        val CHR_SBF72_USER_LIST: UUID by lazy { UUID.fromString("00000001-0000-1000-8000-00805f9b34fb") }
-        val CHR_SBF72_INITIALS : UUID by lazy { UUID.fromString("00000002-0000-1000-8000-00805f9b34fb") }
-        val CHR_SBF72_ACTIVITY_LEVEL: UUID by lazy { UUID.fromString("00000004-0000-1000-8000-00805f9b34fb") }
-        val CHR_SBF72_TAKE_MEASUREMENT: UUID by lazy { UUID.fromString("00000006-0000-1000-8000-00805f9b34fb") }
+        @JvmStatic
+        @JvmSynthetic
+        val SVC_SBF72_CUSTOM = UUID.fromString("0000ffff-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
+        val CHR_SBF72_USER_LIST = UUID.fromString("00000001-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
+        val CHR_SBF72_INITIALS = UUID.fromString("00000002-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
+        val CHR_SBF72_ACTIVITY_LEVEL = UUID.fromString("00000004-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
+        val CHR_SBF72_TAKE_MEASUREMENT = UUID.fromString("00000006-0000-1000-8000-00805f9b34fb")
     }
 
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {

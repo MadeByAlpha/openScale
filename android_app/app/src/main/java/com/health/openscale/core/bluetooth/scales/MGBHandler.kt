@@ -52,10 +52,18 @@ import java.util.UUID
  */
 class MGBHandler : ScaleDeviceHandler() {
 
-    // -- UUIDs --
-    private val SERVICE: UUID = uuid16(0xFFB0)
-    private val CHAR_CFG: UUID = uuid16(0xFFB1)   // write
-    private val CHAR_CTRL: UUID = uuid16(0xFFB2)  // notify
+    private companion object {
+        // -- UUIDs --
+        @JvmStatic
+        @JvmSynthetic
+        private val SERVICE: UUID = uuid16(0xFFB0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CFG: UUID = uuid16(0xFFB1)   // write
+        @JvmStatic
+        @JvmSynthetic
+        private val CHAR_CTRL: UUID = uuid16(0xFFB2)  // notify
+    }
 
     // Pending measurement until 2nd frame arrives
     private var pending: ScaleMeasurement? = null

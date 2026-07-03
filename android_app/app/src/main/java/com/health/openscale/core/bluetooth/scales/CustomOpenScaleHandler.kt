@@ -30,9 +30,16 @@ import kotlin.math.floor
 
 class CustomOpenScaleHandler : ScaleDeviceHandler() {
 
-    // HM-10 (as used by the DIY openScale sketch)
-    private val SVC_HM10: UUID = uuid16(0xFFE0)
-    private val CHR_HM10: UUID = uuid16(0xFFE1)
+    private companion object {
+        // HM-10 (as used by the DIY openScale sketch)
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC_HM10: UUID = uuid16(0xFFE0)
+
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_HM10: UUID = uuid16(0xFFE1)
+    }
 
     // Line buffer for incoming ASCII frames
     private val lineBuf = StringBuilder()

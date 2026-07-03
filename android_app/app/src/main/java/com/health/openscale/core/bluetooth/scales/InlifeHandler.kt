@@ -29,22 +29,30 @@ import kotlin.math.min
 
 class InlifeHandler : ScaleDeviceHandler() {
 
-    // ---- GATT UUIDs (Bluetooth base UUID with 16-bit short codes) ----
-    private val SVC: UUID     = uuid16(0xFFF0)
-    private val CHR_NOTIFY: UUID = uuid16(0xFFF1) // notify
-    private val CHR_CMD: UUID    = uuid16(0xFFF2) // write
+    private companion object {
+        // ---- GATT UUIDs (Bluetooth base UUID with 16-bit short codes) ----
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC: UUID     = uuid16(0xFFF0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_NOTIFY: UUID = uuid16(0xFFF1) // notify
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_CMD: UUID    = uuid16(0xFFF2) // write
 
-    // ---- Wire format constants ----
-    private val START: Byte = 0x02
-    private val END: Byte   = 0xAA.toByte()
-    private val FRAME_LEN   = 14
+        // ---- Wire format constants ----
+        private const val START: Byte = 0x02
+        private const val END: Byte   = 0xAA.toByte()
+        private const val FRAME_LEN   = 14
 
-    // Commands
-    private val CMD_SET_USER = 0xD2
-    private val CMD_WEIGHT   = 0xD8
-    private val CMD_RESULT   = 0xDD
-    private val CMD_USER_ACK = 0xDF
-    private val CMD_FINISH   = 0xD4
+        // Commands
+        private const val CMD_SET_USER = 0xD2
+        private const val CMD_WEIGHT   = 0xD8
+        private const val CMD_RESULT   = 0xDD
+        private const val CMD_USER_ACK = 0xDF
+        private const val CMD_FINISH   = 0xD4
+    }
 
     // De-duplication of repeated notifications
     private var lastFrame: ByteArray? = null

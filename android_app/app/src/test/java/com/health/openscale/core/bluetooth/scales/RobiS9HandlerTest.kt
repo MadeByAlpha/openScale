@@ -32,7 +32,7 @@ class RobiS9HandlerTest {
     @Test
     fun `extracts 77_25 kg from the real A3 final frame`() {
         // @vanboxel capture, v1.18.0: 01 2d c2 = 77250 g = 77.25 kg.
-        val a3 = RobiS9Handler.hexToBytes("030800a300012dc2000000000000000000000013")
+        val a3 = ScaleDeviceHandler.hexToBytes("030800a300012dc2000000000000000000000013")
         val kg = RobiS9Handler.parseFinalWeightKg(a3)
         assertThat(kg).isNotNull()
         assertThat(kg!!).isWithin(1e-2f).of(77.25f)
@@ -40,7 +40,7 @@ class RobiS9HandlerTest {
 
     @Test
     fun `ignores A2 live frames`() {
-        val a2 = RobiS9Handler.hexToBytes("1d0700a20400012c000000000000000000000013")
+        val a2 = ScaleDeviceHandler.hexToBytes("1d0700a20400012c000000000000000000000013")
         assertThat(RobiS9Handler.parseFinalWeightKg(a2)).isNull()
     }
 
@@ -49,7 +49,7 @@ class RobiS9HandlerTest {
         assertThat(RobiS9Handler.parseFinalWeightKg(ByteArray(10))).isNull()
         // [2] != 0x00
         assertThat(RobiS9Handler.parseFinalWeightKg(
-            RobiS9Handler.hexToBytes("0308ffa300012dc2000000000000000000000013"))).isNull()
+            ScaleDeviceHandler.hexToBytes("0308ffa300012dc2000000000000000000000013"))).isNull()
     }
 
     @Test
@@ -59,7 +59,7 @@ class RobiS9HandlerTest {
             .isEqualTo("000300b000000000000000000000000000000010")
         // seq byte increments 00..0a
         RobiS9Handler.HANDSHAKE.forEachIndexed { i, hex ->
-            assertThat(RobiS9Handler.hexToBytes(hex)[0].toInt() and 0xFF).isEqualTo(i)
+            assertThat(ScaleDeviceHandler.hexToBytes(hex)[0].toInt() and 0xFF).isEqualTo(i)
         }
     }
 }

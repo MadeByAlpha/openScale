@@ -17,230 +17,162 @@
  */
 package com.health.openscale.core.bluetooth.libs
 
-class OneByoneLib(// male = 1; female = 0
-    private val sex: Int,
-    private val age: Int,
-    private val height: Float, // low activity = 0; medium activity = 1; high activity = 2
-    private val peopleType: Int
-) {
-    fun getBMI(weight: Float): Float {
-        return weight / (((height * height) / 100.0f) / 100.0f)
+import com.health.openscale.core.bluetooth.data.ScaleUser
+import com.health.openscale.core.data.ActivityLevel
+
+
+@Suppress("detekt:MagicNumber")
+open class OneByoneLib(user: ScaleUser, weightKg: Float, impedance: Float) : ImpedanceLib(user, weightKg, impedance) {
+
+    private val peopleType: Int = when (user.activityLevel) {
+        // Matches legacy mapping:
+        // SEDENTARY/MILD -> 0, MODERATE -> 1, HEAVY/EXTREME -> 2
+        ActivityLevel.SEDENTARY, ActivityLevel.MILD -> 0
+        ActivityLevel.MODERATE -> 1
+        ActivityLevel.HEAVY, ActivityLevel.EXTREME -> 2
     }
 
-    fun getLBM(weight: Float, bodyFat: Float): Float {
-        return weight - (bodyFat / 100.0f * weight)
-    }
+    override val musclePercent: Float =
+        ((heightCm * heightCm / impedance * 0.401f) + (male * 3.825f) - (age * 0.071f) + 5.102f).percent
 
-    fun getMuscle(weight: Float, impedanceValue: Float): Float {
-        return ((height * height / impedanceValue * 0.401) + (sex * 3.825) - (age * 0.071) + 5.102).toFloat() / weight * 100.0f
-    }
-
-    fun getWater(bodyFat: Float): Float {
-        val coeff: Float
-        val water = (100.0f - bodyFat) * 0.7f
-
-        if (water < 50) {
-            coeff = 1.02f
-        } else {
-            coeff = 0.98f
-        }
-
-        return coeff * water
-    }
-
-    fun getBoneMass(weight: Float, impedanceValue: Float): Float {
-        var boneMass: Float
-        val sexConst: Float
-        var peopleCoeff = 0.0f
-
-        when (peopleType) {
-            0 -> peopleCoeff = 1.0f
-            1 -> peopleCoeff = 1.0427f
-            2 -> peopleCoeff = 1.0958f
-        }
-
-        boneMass =
-            (9.058f * (height / 100.0f) * (height / 100.0f) + 12.226f + (0.32f * weight)) - (0.0068f * impedanceValue)
-
-        if (sex == 1) { // male
-            sexConst = 3.49305f
-        } else {
-            sexConst = 4.76325f
-        }
-
-        boneMass = boneMass - sexConst - (age * 0.0542f) * peopleCoeff
-
-        if (boneMass <= 2.2f) {
-            boneMass = boneMass - 0.1f
-        } else {
-            boneMass = boneMass + 0.1f
-        }
-
-        boneMass = boneMass * 0.05158f
-
-        if (0.5f > boneMass) {
-            return 0.5f
-        } else if (boneMass > 8.0f) {
-            return 8.0f
-        }
-
-        return boneMass
-    }
-
-    fun getVisceralFat(weight: Float): Float {
+    @Suppress("detekt:MaxLineLength")
+    override val visceralFatPercent: Float by lazy {
         val visceralFat: Float
 
-        if (sex == 1) {
-            if (height < ((1.6f * weight) + 63.0f)) {
+        if (isMale) {
+            if (heightCm < ((1.6f * weightKg) + 63.0f)) {
                 visceralFat =
-                    (((weight * 305.0f) / (0.0826f * height * height - (0.4f * height) + 48.0f)) - 2.9f) + (age.toFloat() * 0.15f)
+                    (((weightKg * 305.0f) / (0.0826f * heightCm * heightCm - (0.4f * heightCm) + 48.0f)) - 2.9f) + (age.toFloat() * 0.15f)
 
                 if (peopleType == 0) {
-                    return visceralFat
+                    return@lazy visceralFat
                 } else {
-                    return subVisceralFat_A(visceralFat)
+                    return@lazy subVisceralFat_A(visceralFat, peopleType)
                 }
             } else {
                 visceralFat =
-                    ((age.toFloat() * 0.15f) + ((weight * (-0.0015f * height + 0.765f)) - height * 0.143f)) - 5.0f
+                    ((age.toFloat() * 0.15f) + ((weightKg * (-0.0015f * heightCm + 0.765f)) - heightCm * 0.143f)) - 5.0f
 
                 if (peopleType == 0) {
-                    return visceralFat
+                    return@lazy visceralFat
                 } else {
-                    return subVisceralFat_A(visceralFat)
+                    return@lazy subVisceralFat_A(visceralFat, peopleType)
                 }
             }
         } else {
-            if (((0.5f * height) - 13.0f) > weight) {
+            if (((0.5f * heightCm) - 13.0f) > weightKg) {
                 visceralFat =
-                    ((age.toFloat() * 0.07f) + ((weight * (-0.0024f * height + 0.691f)) - (height * 0.027f))) - 10.5f
+                    ((age.toFloat() * 0.07f) + ((weightKg * (-0.0024f * heightCm + 0.691f)) - (heightCm * 0.027f))) - 10.5f
 
                 if (peopleType != 0) {
-                    return subVisceralFat_A(visceralFat)
+                    return@lazy subVisceralFat_A(visceralFat, peopleType)
                 } else {
-                    return visceralFat
+                    return@lazy visceralFat
                 }
             } else {
                 visceralFat =
-                    (weight * 500.0f) / (((1.45f * height) + 0.1158f * height * height) - 120.0f) - 6.0f + (age.toFloat() * 0.07f)
+                    (weightKg * 500.0f) / (((1.45f * heightCm) + 0.1158f * heightCm * heightCm) - 120.0f) - 6.0f + (age.toFloat() * 0.07f)
 
                 if (peopleType == 0) {
-                    return visceralFat
+                    return@lazy visceralFat
                 } else {
-                    return subVisceralFat_A(visceralFat)
+                    return@lazy subVisceralFat_A(visceralFat, peopleType)
                 }
             }
         }
     }
 
-    private fun subVisceralFat_A(visceralFat: Float): Float {
-        var visceralFat = visceralFat
-        if (peopleType != 0) {
-            if (10.0f <= visceralFat) {
-                return subVisceralFat_B(visceralFat)
-            } else {
-                visceralFat = visceralFat - 4.0f
-                return visceralFat
-            }
-        } else {
-            if (10.0f > visceralFat) {
-                visceralFat = visceralFat - 2.0f
-                return visceralFat
-            } else {
-                return subVisceralFat_B(visceralFat)
-            }
+    override val bodyFatPercent: Float by lazy {
+        var bodyFat: Float =
+            12.226f + (9.058E-4f * heightCm * heightCm) - (0.0068f * impedance) - (0.0542f * age)
+        bodyFat += 0.32f * heightCm
+
+        bodyFat -= if (isMale) 0.8f else if (age >= 50) 7.25f else 9.25f
+        bodyFat *= when (peopleType) {
+            0 -> 1f
+            1 -> 1.0427f
+            else -> 1.0958f
         }
+
+        if (isMale) {
+            if (61.0f > weightKg) bodyFat *= 0.98f
+        } else {
+            if (50.0f > weightKg) bodyFat *= 1.02f
+            if (weightKg > 60.0f) bodyFat *= 0.96f
+            if (heightCm > 160.0f) bodyFat *= 1.03f
+        }
+
+        (100f - bodyFat.percent).coerceIn(1f, 45f)
     }
 
-    private fun subVisceralFat_B(visceralFat: Float): Float {
-        var visceralFat = visceralFat
-        if (visceralFat < 10.0f) {
-            visceralFat = visceralFat * 0.85f
-            return visceralFat
-        } else {
-            if (20.0f < visceralFat) {
-                visceralFat = visceralFat * 0.85f
-                return visceralFat
-            } else {
-                visceralFat = visceralFat * 0.8f
-                return visceralFat
-            }
+    override val waterPercent: Float =
+        ((100f - bodyFatPercent) * 0.7f).let { it * (if (it < 50f) 1.02f else 0.98f) }
+
+    override val proteinPercent: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+
+    override val boneMassKg: Float by lazy {
+        var boneMass: Float =
+            12.226f + (9.058E-4f * heightCm * heightCm) - (0.0068f * impedance) - (0.0542f * age)
+        boneMass += 0.32f * weightKg
+
+        boneMass -= if (isMale) 3.49305f else 4.76325f
+        boneMass *= when (peopleType) {
+            0 -> 1.0f
+            1 -> 1.0427f
+            else -> 1.0958f
+            // else -> 0f
         }
+
+        boneMass += if (boneMass <= 2.2f) -0.1f else 0.1f
+        boneMass *= 0.05158f
+
+        boneMass.coerceIn(0.5f, 8.0f)
     }
 
-    fun getBodyFat(weight: Float, impedanceValue: Float): Float {
-        var bodyFatConst = 0f
+    override val lbmKg: Float = weightKg - (bodyFatPercent * weightKg / 100.0f)
+    override val bcmKg: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
+    override val bmrKcal: Float
+        get() = throw UnsupportedOperationException("Unsupported on this scale")
 
-        if (impedanceValue >= 1200.0f) bodyFatConst = 8.16f
-        else if (impedanceValue >= 200.0f) bodyFatConst = 0.0068f * impedanceValue
-        else if (impedanceValue >= 50.0f) bodyFatConst = 1.36f
-
-        val peopleTypeCoeff: Float
-        var bodyVar: Float
-        val bodyFat: Float
-
-        if (peopleType == 0) {
-            peopleTypeCoeff = 1.0f
-        } else {
-            if (peopleType == 1) {
-                peopleTypeCoeff = 1.0427f
+    private companion object {
+        @JvmStatic
+        @JvmSynthetic
+        private fun subVisceralFat_A(visceralFat: Float, peopleType: Int): Float {
+            var visceralFat = visceralFat
+            if (peopleType != 0) {
+                if (10.0f <= visceralFat) {
+                    return subVisceralFat_B(visceralFat)
+                } else {
+                    visceralFat -= 4.0f
+                    return visceralFat
+                }
             } else {
-                peopleTypeCoeff = 1.0958f
+                if (10.0f > visceralFat) {
+                    visceralFat -= 2.0f
+                    return visceralFat
+                } else {
+                    return subVisceralFat_B(visceralFat)
+                }
             }
         }
 
-        bodyVar = (9.058f * height) / 100.0f
-        bodyVar = bodyVar * height
-        bodyVar = bodyVar / 100.0f + 12.226f
-        bodyVar = bodyVar + 0.32f * weight
-        bodyVar = bodyVar - bodyFatConst
-
-        if (age > 0x31) {
-            bodyFatConst = 7.25f
-
-            if (sex == 1) {
-                bodyFatConst = 0.8f
-            }
-        } else {
-            bodyFatConst = 9.25f
-
-            if (sex == 1) {
-                bodyFatConst = 0.8f
-            }
-        }
-
-        bodyVar = bodyVar - bodyFatConst
-        bodyVar = bodyVar - (age * 0.0542f)
-        bodyVar = bodyVar * peopleTypeCoeff
-
-        if (sex != 0) {
-            if (61.0f > weight) {
-                bodyVar *= 0.98f
-            }
-        } else {
-            if (50.0f > weight) {
-                bodyVar *= 1.02f
-            }
-
-            if (weight > 60.0f) {
-                bodyVar *= 0.96f
-            }
-
-            if (height > 160.0f) {
-                bodyVar *= 1.03f
-            }
-        }
-
-        bodyVar = bodyVar / weight
-        bodyFat = 100.0f * (1.0f - bodyVar)
-
-        if (1.0f > bodyFat) {
-            return 1.0f
-        } else {
-            if (bodyFat > 45.0f) {
-                return 45.0f
+        @JvmStatic
+        @JvmSynthetic
+        private fun subVisceralFat_B(visceralFat: Float): Float {
+            var visceralFat = visceralFat
+            if (visceralFat < 10.0f) {
+                visceralFat *= 0.85f
+                return visceralFat
             } else {
-                return bodyFat
+                if (20.0f < visceralFat) {
+                    visceralFat *= 0.85f
+                    return visceralFat
+                } else {
+                    visceralFat *= 0.8f
+                    return visceralFat
+                }
             }
         }
     }

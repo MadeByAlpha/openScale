@@ -16,8 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package com.health.openscale.core.bluetooth.scales
-import com.health.openscale.core.bluetooth.data.ScaleUser
+
 import com.health.openscale.core.bluetooth.data.ScaleMeasurement
+import com.health.openscale.core.bluetooth.data.ScaleUser
 import com.health.openscale.core.data.ActivityLevel
 import com.health.openscale.core.data.GenderType
 import com.health.openscale.core.service.ScannedDeviceInfo
@@ -31,33 +32,55 @@ import java.util.UUID
  */
 class BeurerBF450Handler : StandardWeightProfileHandler() {
 
-    // UUID helper
-    private val SVC   = uuid16(0xFFFF)
+    private companion object {
+        // UUID helper
+        @JvmStatic
+        @JvmSynthetic
+        private val SVC = uuid16(0xFFFF)
 
-    // characteristic 
-    private val CHR_USER_LIST         = uuid16(0xFFF1)
-    private val CHR_ACTIVITY          = uuid16(0xFFF2)
-    private val CHR_TAKE_MEASUREMENT  = uuid16(0xFFF4)
-    private val CHR_LIVE_WEIGHT       = uuid16(0xFFF0)
-    private val CHR_PROPRIETARY_BC    = uuid16(0xFFF5)
-    private val CHR_BF450_EXTRA       = uuid16(0xFFF6)
-    private val CHR_ACK               = uuid16(0xFFF7)
+        // characteristic
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_USER_LIST = uuid16(0xFFF1)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_ACTIVITY = uuid16(0xFFF2)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_TAKE_MEASUREMENT = uuid16(0xFFF4)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_LIVE_WEIGHT = uuid16(0xFFF0)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_PROPRIETARY_BC = uuid16(0xFFF5)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_BF450_EXTRA = uuid16(0xFFF6)
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_ACK = uuid16(0xFFF7)
 
-    // characteristic GATT Standard
-    private val CHR_BCS_BODY_COMP     = UUID.fromString("00002a9c-0000-1000-8000-00805f9b34fb")
-    private val CHR_WSP_WEIGHT        = UUID.fromString("00002a9d-0000-1000-8000-00805f9b34fb")
+        // characteristic GATT Standard
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_BCS_BODY_COMP = UUID.fromString("00002a9c-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
+        private val CHR_WSP_WEIGHT = UUID.fromString("00002a9d-0000-1000-8000-00805f9b34fb")
+    }
 
-    // state 
+    // state
     private val scaleUserList = mutableListOf<ScaleUser>()
     private var pendingBodyComposition = false
 
-    private var lastFatPct    = 0f
+    private var lastFatPct = 0f
     private var lastMusclePct = 0f
     private var lastMuscleMass = 0f
-    private var lastBodyWater  = 0f
-    private var lastImpedance  = 0.0
+    private var lastBodyWater = 0f
+    private var lastImpedance = 0.0
 
-    // DeviceSupport 
+    // DeviceSupport
     override fun supportFor(device: ScannedDeviceInfo): DeviceSupport? {
         val name = device.name.lowercase()
         if ("bf450" !in name) return null
@@ -114,7 +137,7 @@ class BeurerBF450Handler : StandardWeightProfileHandler() {
 
     // Write user data
     override fun writeUserDataToScale() {
-        super.writeUserDataToScale()   
+        super.writeUserDataToScale()
         val user = currentAppUser()
         logD("Additional user data BF450 for userId=${user.id}")
         writeActivityLevel(user)
@@ -133,7 +156,6 @@ class BeurerBF450Handler : StandardWeightProfileHandler() {
             CHR_BF450_EXTRA -> handleBF450Extra(data)
             CHR_PROPRIETARY_BC -> logD("CHR_PROPRIETARY_BC (FFF5): ${data.toHexString()} [raw, not decoded]")
             CHR_ACK -> logD("CHR_ACK (FFF7): ${data.toHexString()}")
-            
             CHR_BCS_BODY_COMP -> {
                 handleStandardBodyComposition(data)
                 super.onNotification(characteristic, data, user)
@@ -186,20 +208,20 @@ class BeurerBF450Handler : StandardWeightProfileHandler() {
                 }
 
                 parser.offset = 5
-                val year     = parser.getUInt16().toInt()
-                val month    = parser.getUInt8().toInt()
-                val day      = parser.getUInt8().toInt()
-                val height   = parser.getUInt8().toInt()
-                val gender   = parser.getUInt8().toInt()
+                val year = parser.getUInt16().toInt()
+                val month = parser.getUInt8().toInt()
+                val day = parser.getUInt8().toInt()
+                val height = parser.getUInt8().toInt()
+                val gender = parser.getUInt8().toInt()
                 val activity = parser.getUInt8().toInt()
 
                 val calendar = GregorianCalendar(year, month - 1, day)
                 val scaleUser = ScaleUser().apply {
-                    this.id           = index
-                    this.userName     = initials
-                    this.birthday     = calendar.time
-                    this.bodyHeight   = height.toFloat()
-                    this.gender       = if (gender == 0) GenderType.MALE else GenderType.FEMALE
+                    this.id = index
+                    this.userName = initials
+                    this.birthday = calendar.time
+                    this.bodyHeight = height.toFloat()
+                    this.gender = if (gender == 0) GenderType.MALE else GenderType.FEMALE
                     this.activityLevel = ActivityLevel.fromInt(activity - 1)
                 }
                 scaleUserList.add(scaleUser)
@@ -213,10 +235,10 @@ class BeurerBF450Handler : StandardWeightProfileHandler() {
     private fun handleLiveWeight(data: ByteArray, user: ScaleUser) {
         if (data.size < 5) return
         val statusByte = data[1].toInt() and 0xFF
-        val rawWeight  = data[3].toInt() and 0xFF
-        val liveKg     = rawWeight * 0.5f
-        logD("FFF0 Live: status=0x${statusByte.toString(16)} weight_live≈${liveKg}kg raw=${rawWeight}")
-        
+        val rawWeight = data[3].toInt() and 0xFF
+        val liveKg = rawWeight * 0.5f
+        logD("FFF0 Live: status=0x${statusByte.toString(16)} weight_live≈${liveKg}kg raw=$rawWeight")
+
         val dummyGattPayload = ByteArray(10)
         dummyGattPayload[0] = 0x00 // Flags: instabile, unità in kg
         val rawWeightU16 = (liveKg / 0.005f).toInt()
@@ -242,23 +264,23 @@ class BeurerBF450Handler : StandardWeightProfileHandler() {
             return
         }
         val impedance = (data[5].toInt() and 0xFF) or ((data[6].toInt() and 0xFF) shl 8)
-        val userId    = data[9].toInt() and 0xFF
+        val userId = data[9].toInt() and 0xFF
         lastImpedance = impedance.toDouble()
-        logD("FFF6: impedance=${impedance}Ω user_id_scale=${userId}")
+        logD("FFF6: impedance=${impedance}Ω user_id_scale=$userId")
     }
 
-    // Gatt weight measurement (0x2A9C) 
+    // Gatt weight measurement (0x2A9C)
     private fun handleStandardBodyComposition(data: ByteArray) {
         if (data.size < 14) {
             logW("2A9C: payload too short (${data.size} byte)")
             return
         }
 
-        val flags      = (data[0].toInt() and 0xFF) or ((data[1].toInt() and 0xFF) shl 8)
-        val fatPctRaw  = (data[2].toInt() and 0xFF) or ((data[3].toInt() and 0xFF) shl 8)
+        val flags = (data[0].toInt() and 0xFF) or ((data[1].toInt() and 0xFF) shl 8)
+        val fatPctRaw = (data[2].toInt() and 0xFF) or ((data[3].toInt() and 0xFF) shl 8)
         val muscPctRaw = (data[6].toInt() and 0xFF) or ((data[7].toInt() and 0xFF) shl 8)
         val muscMassRaw = (data[8].toInt() and 0xFF) or ((data[9].toInt() and 0xFF) shl 8)
-        val waterRaw   = (data[10].toInt() and 0xFF) or ((data[11].toInt() and 0xFF) shl 8)
+        val waterRaw = (data[10].toInt() and 0xFF) or ((data[11].toInt() and 0xFF) shl 8)
 
         if (fatPctRaw == 0) {
             logD("2A9C: measure only weight (no foot contact)")
@@ -266,28 +288,44 @@ class BeurerBF450Handler : StandardWeightProfileHandler() {
             return
         }
 
-        lastFatPct     = fatPctRaw    * 0.1f
-        lastMusclePct  = muscPctRaw   * 0.1f
-        lastMuscleMass = muscMassRaw  * 0.1f
-        lastBodyWater  = waterRaw     * 0.1f
+        lastFatPct = fatPctRaw * 0.1f
+        lastMusclePct = muscPctRaw * 0.1f
+        lastMuscleMass = muscMassRaw * 0.1f
+        lastBodyWater = waterRaw * 0.1f
         pendingBodyComposition = true
 
-        logD("2A9C: flags=0x${flags.toString(16)} fat=%.1f%% muscPct=%.1f%% muscMass=%.1fkg water=%.1fkg (impd=%.1fΩ)".format(lastFatPct, lastMusclePct, lastMuscleMass, lastBodyWater, lastImpedance))
+        logD(
+            "2A9C: flags=0x${flags.toString(
+                16
+            )} fat=%.1f%% muscPct=%.1f%% muscMass=%.1fkg water=%.1fkg (impd=%.1fΩ)".format(
+                lastFatPct,
+                lastMusclePct,
+                lastMuscleMass,
+                lastBodyWater,
+                lastImpedance
+            )
+        )
     }
-
 
     override fun transformBeforePublish(m: ScaleMeasurement): ScaleMeasurement {
         val transformed = super.transformBeforePublish(m)
 
         if (pendingBodyComposition) {
-            transformed.fat        = lastFatPct
-            transformed.muscle     = lastMusclePct
-            transformed.water      = (lastBodyWater / (transformed.weight.takeIf {it > 0f} ?: 1f) * 100f)
+            transformed.fat = lastFatPct
+            transformed.muscle = lastMusclePct
+            transformed.water = (lastBodyWater / (transformed.weight.takeIf { it > 0f } ?: 1f) * 100f)
             if (lastImpedance > 0.0) {
                 transformed.impedance = lastImpedance
             }
 
-            logD("Added values to measurement in BF450: fat=%.1f%% musc=%.1f%% water=%.1f%% impd=%.1fΩ".format(transformed.fat, transformed.muscle, transformed.water, transformed.impedance))
+            logD(
+                "Added values to measurement in BF450: fat=%.1f%% musc=%.1f%% water=%.1f%% impd=%.1fΩ".format(
+                    transformed.fat,
+                    transformed.muscle,
+                    transformed.water,
+                    transformed.impedance
+                )
+            )
             pendingBodyComposition = false
         }
 

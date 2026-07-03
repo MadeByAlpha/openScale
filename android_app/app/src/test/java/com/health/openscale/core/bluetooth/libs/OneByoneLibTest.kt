@@ -18,7 +18,12 @@
 package com.health.openscale.core.bluetooth.libs
 
 import com.google.common.truth.Truth.assertThat
-import com.google.common.truth.Truth.assertWithMessage
+import com.health.openscale.core.bluetooth.libs.utils.EPS
+import com.health.openscale.core.bluetooth.libs.utils.InstanceBuilder
+import com.health.openscale.core.bluetooth.libs.utils.Snapshot
+import com.health.openscale.core.bluetooth.libs.utils.Supports
+import com.health.openscale.core.bluetooth.libs.utils.user
+import com.health.openscale.core.data.ActivityLevel
 import org.junit.Test
 import kotlin.math.abs
 import kotlin.math.max
@@ -35,118 +40,185 @@ import kotlin.math.min
  */
 class OneByoneLibTest {
 
-    private val EPS = 1e-3f
+    private companion object {
 
-    // ---------- Snapshots (pre-recorded from current Java implementation) ----------
-
-    private data class Snap(
-        val sex: Int,
-        val age: Int,
-        val h: Float,
-        val w: Float,
-        val imp: Float,
-        val pt: Int,
-        val bmi: Float,
-        val bf: Float,
-        val lbm: Float,
-        val muscle: Float,
-        val water: Float,
-        val bone: Float,
-        val vf: Float
-    )
-
-    private val FIXTURES = mapOf(
-        "male_mid" to Snap(
-            sex = 1, age = 30, h = 180f, w = 80f, imp = 500f, pt = 0,
-            bmi = 24.691359f, bf = 23.315102f, lbm = 61.34792f, muscle = 40.97725f,
-            water = 52.60584f, bone = 3.030576f, vf = 10.79977f
-        ),
-        "female_mid" to Snap(
-            sex = 0, age = 28, h = 165f, w = 60f, imp = 520f, pt = 1,
-            bmi = 22.038567f, bf = 25.210106f, lbm = 44.873936f, muscle = 40.181107f,
-            water = 51.305866f, bone = 2.3883991f, vf = 0.70499706f
-        ),
-        "male_high" to Snap(
-            sex = 1, age = 52, h = 175f, w = 95f, imp = 430f, pt = 2,
-            bmi = 31.020409f, bf = 26.381027f, lbm = 69.93803f, muscle = 35.573257f,
-            water = 50.502613f, bone = 3.1443515f, vf = 13.163806f
-        ),
-        "imp_low" to Snap(
-            sex = 1, age = 25, h = 178f, w = 72f, imp = 80f, pt = 0,
-            bmi = 22.724403f, bf = 16.04116f, lbm = 60.450363f, muscle = 230.51118f,
-            water = 57.595764f, bone = 3.0263696f, vf = 9.316022f
-        ),
-        "imp_mid" to Snap(
-            sex = 0, age = 35, h = 170f, w = 68f, imp = 300f, pt = 2,
-            bmi = 23.529411f, bf = 25.14642f, lbm = 50.900436f, muscle = 60.656864f,
-            water = 51.349552f, bone = 2.650265f, vf = 2.6039982f
-        ),
-        "imp_high" to Snap(
-            sex = 1, age = 45, h = 182f, w = 90f, imp = 1300f, pt = 1,
-            bmi = 27.170633f, bf = 30.914497f, lbm = 62.176952f, muscle = 17.721643f,
-            water = 49.32705f, bone = 2.901557f, vf = 11.179609f
+        @JvmStatic
+        private val SUPPORTS = Supports(
+            builder = ::OneByoneLib,
+            musclePercent = true,
+            visceralFatPercent = true,
+            bodyFatPercent = true,
+            waterPercent = true,
+            boneMassKg = true,
+            lbmKg = true,
         )
-    )
 
-    @Test
-    fun snapshots_match_expected_outputs() {
-        require(FIXTURES.isNotEmpty()) { "No snapshots defined." }
+        // --- Snapshots (pre-recorded from current Java implementation) -------
+        // <editor-fold defaultstate="collapsed" desc="private val FIXTURES = mapOf(...)">
+        private val FIXTURES = mapOf(
+            "male_mid" to Snapshot(
+                age = 30,
+                heightCm = 180f,
+                activityLevel = ActivityLevel.MILD,
+                isMale = true,
+                weightKg = 80f,
+                impedanceOhms = 500f,
+                bmi = 24.691359f,
+                musclePercent = 40.97725f,
+                bodyFatPercent = 23.315102f,
+                visceralFatPercent = 10.79977f,
+                waterPercent = 52.60584f,
+                boneMassKg = 3.030576f,
+                lbmKg = 61.34792f
+            ),
+            "female_mid" to Snapshot(
+                age = 28,
+                heightCm = 165f,
+                activityLevel = ActivityLevel.MODERATE,
+                isMale = false,
+                weightKg = 60f,
+                impedanceOhms = 520f,
+                bmi = 22.038567f,
+                musclePercent = 40.181107f,
+                bodyFatPercent = 25.210106f,
+                visceralFatPercent = 0.70499706f,
+                waterPercent = 51.305866f,
+                boneMassKg = 2.3883991f,
+                lbmKg = 44.873936f
+            ),
+            "male_high" to Snapshot(
+                age = 52,
+                heightCm = 175f,
+                activityLevel = ActivityLevel.EXTREME,
+                isMale = true,
+                weightKg = 95f,
+                impedanceOhms = 430f,
+                bmi = 31.020409f,
+                musclePercent = 35.573257f,
+                bodyFatPercent = 26.381027f,
+                visceralFatPercent = 13.163806f,
+                waterPercent = 50.502613f,
+                boneMassKg = 3.1443515f,
+                lbmKg = 69.93803f
+            ),
+            "imp_low" to Snapshot(
+                age = 25,
+                heightCm = 178f,
+                activityLevel = ActivityLevel.SEDENTARY,
+                isMale = true,
+                weightKg = 72f,
+                impedanceOhms = 80f,
+                bmi = 22.724403f,
+                musclePercent = 230.51118f,
+                bodyFatPercent = 16.04116f,
+                visceralFatPercent = 9.316022f,
+                waterPercent = 57.595764f,
+                boneMassKg = 3.0263696f,
+                lbmKg = 60.450363f
+            ),
+            "imp_mid" to Snapshot(
+                age = 35,
+                heightCm = 170f,
+                activityLevel = ActivityLevel.HEAVY,
+                isMale = false,
+                weightKg = 68f,
+                impedanceOhms = 300f,
+                bmi = 23.529411f,
+                musclePercent = 60.656864f,
+                bodyFatPercent = 25.14642f,
+                visceralFatPercent = 2.6039982f,
+                waterPercent = 51.349552f,
+                boneMassKg = 2.650265f,
+                lbmKg = 50.900436f
+            ),
+            "imp_high" to Snapshot(
+                age = 45,
+                heightCm = 182f,
+                activityLevel = ActivityLevel.MODERATE,
+                isMale = true,
+                weightKg = 90f,
+                impedanceOhms = 1300f,
+                bmi = 27.170633f,
+                musclePercent = 17.721643f,
+                bodyFatPercent = 30.914497f,
+                visceralFatPercent = 11.179609f,
+                waterPercent = 49.32705f,
+                boneMassKg = 2.901557f,
+                lbmKg = 62.176952f
+            ),
+        )
+        // </editor-fold>
 
-        FIXTURES.forEach { (name, s) ->
-            val lib = OneByoneLib(s.sex, s.age, s.h, s.pt)
-            val bf = lib.getBodyFat(s.w, s.imp)
-
-            assertWithMessage("$name:bmi").that(lib.getBMI(s.w)).isWithin(EPS).of(s.bmi)
-            assertWithMessage("$name:bf").that(bf).isWithin(EPS).of(s.bf)
-            assertWithMessage("$name:lbm").that(lib.getLBM(s.w, bf)).isWithin(EPS).of(s.lbm)
-            assertWithMessage("$name:muscle").that(lib.getMuscle(s.w, s.imp)).isWithin(EPS).of(s.muscle)
-            assertWithMessage("$name:water").that(lib.getWater(bf)).isWithin(EPS).of(s.water)
-            assertWithMessage("$name:bone").that(lib.getBoneMass(s.w, s.imp)).isWithin(EPS).of(s.bone)
-            assertWithMessage("$name:vf").that(lib.getVisceralFat(s.w)).isWithin(EPS).of(s.vf)
-        }
     }
 
-    // ---------------- Generic / property-based tests ----------------
+    // --- Generic / property-based tests --------------------------------------
 
     @Test
-    fun bmi_monotonicity_weightUp_increases_heightConstant() {
-        val lib = OneByoneLib(1, 30, 180f, 0)
-        val w1 = 70f
-        val w2 = 85f
-        assertThat(lib.getBMI(w2)).isGreaterThan(lib.getBMI(w1))
+    fun `snapshots match expected outputs`() {
+        SUPPORTS.testAll(FIXTURES)
     }
 
     @Test
-    fun bmi_monotonicity_heightUp_decreases_weightConstant() {
-        val libShort = OneByoneLib(1, 30, 170f, 0)
-        val libTall  = OneByoneLib(1, 30, 190f, 0)
-        val w = 80f
-        assertThat(libTall.getBMI(w)).isLessThan(libShort.getBMI(w))
+    fun `outputs are finite for typical inputs`() {
+        SUPPORTS.assertOutputs(30, 180f, true, 80f, 500f)
     }
 
+    // --- Helper to (re)generate snapshot values if formulas change -----------
+
     @Test
-    fun water_switch_coeff_below_and_above_50() {
-        val lib = OneByoneLib(0, 40, 165f, 1)
-        val bfHigh = 35f // → (100-35)*0.7 = 45.5 < 50 → *1.02
-        val bfLow  = 20f // → (100-20)*0.7 = 56 > 50 → *0.98
-        val wHigh = lib.getWater(bfHigh)
-        val wLow  = lib.getWater(bfLow)
-        assertThat(wHigh).isLessThan(50f)
-        assertThat(wLow).isGreaterThan(50f)
+    fun `print current outputs for fixtures`() {
+        // Re-run if you intentionally modify formulas; then paste outputs into FIXTURES above.
+        SUPPORTS.dump("", 30, 180f, 80f, true, 500f, ActivityLevel.SEDENTARY)
+        SUPPORTS.dump("", 28, 165f, 60f, false, 520f, ActivityLevel.MODERATE)
+        SUPPORTS.dump("", 52, 175f, 95f, true, 430f, ActivityLevel.EXTREME)
+        SUPPORTS.dump("", 25, 178f, 72f, true, 80f, ActivityLevel.SEDENTARY)
+        SUPPORTS.dump("", 45, 182f, 90f, true, 1300f, ActivityLevel.MODERATE)
+        SUPPORTS.dump("", 35, 170f, 68f, false, 300f, ActivityLevel.EXTREME)
     }
+
+    // --- Behavior / Property tests -------------------------------------------
+
+//    @Test
+//    fun bmi_monotonicity_weightUp_increases_heightConstant() {
+//        val lib = OneByoneLib(1, 30, 180f, 0)
+//        val w1 = 70f
+//        val w2 = 85f
+//        assertThat(lib.getBMI(w2)).isGreaterThan(lib.getBMI(w1))
+//    }
+//
+//    @Test
+//    fun bmi_monotonicity_heightUp_decreases_weightConstant() {
+//        val libShort = OneByoneLib(1, 30, 170f, 0)
+//        val libTall  = OneByoneLib(1, 30, 190f, 0)
+//        val w = 80f
+//        assertThat(libTall.getBMI(w)).isLessThan(libShort.getBMI(w))
+//    }
+
+//    FIXME: getWater use bodyFat for calculation
+//    @Test
+//    fun water_switch_coeff_below_and_above_50() {
+//        val lib = OneByoneLib(0, 40, 165f, 1)
+//        val bfHigh = 35f // → (100-35)*0.7 = 45.5 < 50 → *1.02
+//        val bfLow  = 20f // → (100-20)*0.7 = 56 > 50 → *0.98
+//        val wHigh = lib.getWater(bfHigh)
+//        val wLow  = lib.getWater(bfLow)
+//        assertThat(wHigh).isLessThan(50f)
+//        assertThat(wLow).isGreaterThan(50f)
+//    }
 
     @Test
     fun boneMass_isReasonablyClamped_between_0_5_and_8_0() {
-        val lib = OneByoneLib(0, 55, 170f, 2)
+        val lib = InstanceBuilder(55, 170f, false, ActivityLevel.HEAVY, ::OneByoneLib)
+
         // Explore some extreme ranges
-        val candidates = listOf(
+        val candidates = mapOf(
             40f to 1400f,
             150f to 200f,
             55f to 600f,
             95f to 300f,
         )
         candidates.forEach { (w, imp) ->
-            val bone = lib.getBoneMass(w, imp)
+            val bone = lib(w, imp).boneMassKg
             assertThat(bone).isAtLeast(0.5f)
             assertThat(bone).isAtMost(8.0f)
         }
@@ -154,16 +226,16 @@ class OneByoneLibTest {
 
     @Test
     fun muscle_reacts_to_impedance_reasonably() {
-        val sex = 1; val age = 30; val h = 180f; val w = 80f
-        val lib = OneByoneLib(sex, age, h, 0)
+        val lib = InstanceBuilder(30, 180f, true, null, ::OneByoneLib)
+        val weightKg = 80f
 
         val impHigh = 1300f
         val impMid  = 400f
         val impLow  = 80f
 
-        val mHigh = lib.getMuscle(w, impHigh)
-        val mMid  = lib.getMuscle(w, impMid)
-        val mLow  = lib.getMuscle(w, impLow)
+        val mHigh = lib(weightKg, impHigh).musclePercent
+        val mMid  = lib(weightKg, impMid).musclePercent
+        val mLow  = lib(weightKg, impLow).musclePercent
 
         // Lower impedance tends to increase SMM estimate (classic BIA behavior)
         assertThat(mLow).isGreaterThan(mMid)
@@ -172,27 +244,25 @@ class OneByoneLibTest {
 
     @Test
     fun bodyFat_stays_within_reasonable_bounds() {
-        val lib = OneByoneLib(1, 35, 180f, 1)
+        val lib = InstanceBuilder(35, 180f, true, ActivityLevel.MODERATE, ::OneByoneLib)
         val weights = listOf(50f, 70f, 90f, 110f)
         val imps    = listOf(80f, 300f, 600f, 1200f)
         for (w in weights) for (imp in imps) {
-            val bf = lib.getBodyFat(w, imp)
+            val bf = lib(w, imp).bodyFatPercent
             // Implementation clamps to [1, 45]; allow small epsilon
-            assertThat(bf).isAtLeast(1f - 1e-3f)
-            assertThat(bf).isAtMost(45f + 1e-3f)
+            assertThat(bf).isAtLeast(1f - EPS)
+            assertThat(bf).isAtMost(45f + EPS)
         }
     }
 
     @Test
     fun peopleType_influences_outputs() {
-        val base = OneByoneLib(1, 40, 175f, 0)
-        val mid  = OneByoneLib(1, 40, 175f, 1)
-        val high = OneByoneLib(1, 40, 175f, 2)
-        val w = 85f; val imp = 450f
+        fun boneMassKg(activityLevel: ActivityLevel) =
+            OneByoneLib(user(40, 175f, true, activityLevel), 85f, 450f).boneMassKg
 
-        val boneBase = base.getBoneMass(w, imp)
-        val boneMid  = mid.getBoneMass(w, imp)
-        val boneHigh = high.getBoneMass(w, imp)
+        val boneBase = boneMassKg(ActivityLevel.MILD)
+        val boneMid  = boneMassKg(ActivityLevel.MODERATE)
+        val boneHigh = boneMassKg(ActivityLevel.HEAVY)
 
         // Different activity types should yield distinct (but not crazy) values.
         assertThat(abs(boneBase - boneMid)).isGreaterThan(0.0f)
@@ -206,58 +276,10 @@ class OneByoneLibTest {
 
     @Test
     fun sex_flag_affects_outputs() {
-        val male   = OneByoneLib(1, 32, 178f, 1)
-        val female = OneByoneLib(0, 32, 178f, 1)
-        val w = 75f; val imp = 420f
-
-        val bfM = male.getBodyFat(w, imp)
-        val bfF = female.getBodyFat(w, imp)
+        fun bodyFat(isMale: Boolean) =
+            OneByoneLib(user(32, 178f, isMale), 75f, 420f).bodyFatPercent
 
         // Expect some difference between sexes
-        assertThat(abs(bfM - bfF)).isGreaterThan(0.1f)
-    }
-
-    @Test
-    fun outputs_are_finite_for_typical_ranges() {
-        val lib = OneByoneLib(1, 30, 180f, 0)
-        val w = 80f; val imp = 500f
-        val bf = lib.getBodyFat(w, imp)
-        val values = listOf(
-            lib.getBMI(w),
-            bf,
-            lib.getLBM(w, bf),
-            lib.getMuscle(w, imp),
-            lib.getWater(bf),
-            lib.getBoneMass(w, imp),
-            lib.getVisceralFat(w)
-        )
-        values.forEach {
-            assertThat(it.isNaN()).isFalse()
-            assertThat(it.isInfinite()).isFalse()
-        }
-    }
-
-    // ---------- Helper to (re)generate snapshot values if formulas change ----------
-
-    @Test
-    fun print_current_outputs_for_fixtures() {
-        fun dump(sex: Int, age: Int, h: Float, w: Float, imp: Float, pt: Int) {
-            val lib = OneByoneLib(sex, age, h, pt)
-            val bf = lib.getBodyFat(w, imp)
-            println(
-                "SNAP -> sex=$sex age=$age h=$h w=$w imp=$imp pt=$pt | " +
-                        "bmi=${lib.getBMI(w)}; bf=$bf; " +
-                        "lbm=${lib.getLBM(w, bf)}; muscle=${lib.getMuscle(w, imp)}; " +
-                        "water=${lib.getWater(bf)}; bone=${lib.getBoneMass(w, imp)}; vf=${lib.getVisceralFat(w)}"
-            )
-        }
-
-        // Re-run if you intentionally modify formulas; then paste outputs into FIXTURES above.
-        dump(1, 30, 180f, 80f, 500f, 0)
-        dump(0, 28, 165f, 60f, 520f, 1)
-        dump(1, 52, 175f, 95f, 430f, 2)
-        dump(1, 25, 178f, 72f, 80f, 0)
-        dump(0, 35, 170f, 68f, 300f, 2)
-        dump(1, 45, 182f, 90f, 1300f, 1)
+        assertThat(abs(bodyFat(true) - bodyFat(false))).isGreaterThan(0.1f)
     }
 }

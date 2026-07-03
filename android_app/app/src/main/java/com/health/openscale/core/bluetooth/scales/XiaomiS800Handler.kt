@@ -71,8 +71,12 @@ class XiaomiS800Handler : ScaleDeviceHandler() {
     companion object {
         private const val SETTINGS_KEY_BIND_KEY = "s800_bind_key"
 
+        @JvmStatic
+        @JvmSynthetic
         private val KNOWN_NAME_PATTERNS = listOf("MIJIA SCALE S800", "MS116")
 
+        @JvmStatic
+        @JvmSynthetic
         private val SERVICE_UUID_FE95 =
             ParcelUuid.fromString("0000fe95-0000-1000-8000-00805f9b34fb")
     }
@@ -140,9 +144,6 @@ class XiaomiS800Handler : ScaleDeviceHandler() {
         }
         return data
     }
-
-    private fun hexToBytes(hex: String): ByteArray =
-        ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
     @Composable
     override fun DeviceConfigurationUi() {

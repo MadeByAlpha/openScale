@@ -17,7 +17,11 @@ import kotlin.time.Duration.Companion.seconds
 class RyFitHandler : ScaleDeviceHandler() {
 
     companion object {
+        @JvmStatic
+        @JvmSynthetic
         val SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb")
+        @JvmStatic
+        @JvmSynthetic
         val CHAR_UUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb")
         private const val GUEST_SLOT = 9
     }
